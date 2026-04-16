@@ -1,0 +1,44 @@
+import { createBrowserClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Current session JWT — kept fresh by SupabaseProvider calling setAccessToken()
+// whenever the session changes.
+let _accessToken = ''
+export function setAccessToken(token: string) { _accessToken = token }
+
+// ─── Main client ──────────────────────────────────────────────────────────────
+// Used for: auth (getSession / onAuthStateChange) and realtime subscriptions.
+// Uses @supabase/ssr so the session cookie is shared with Next.js middleware.
+export function createClient() {
+  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+}
+
+// ─── Fetch client ─────────────────────────────────────────────────────────────
+// Used for: REST data operations (INSERT, SELECT, UPDATE).
+//
+// Problem: the main client serialises every auth-token op (including the
+// realtime channel's periodic refresh) behind a navigator.locks lock.  Each
+// REST call must call getSession() to obtain the current JWT — if a refresh
+// holds the lock, the call queues with NO timeout and our 10 s send-timer fires
+// first → "Failed to send message".
+//
+// Solution: a second, auth-unmanaged client that receives the token via the
+// `accessToken` callback instead.  That path bypasses getSession() entirely, so
+// REST calls are never blocked by a concurrent refresh.
+let _fetchClient: ReturnType<typeof createSupabaseClient> | null = null
+export function getFetchClient() {
+  if (!_fetchClient) {
+    _fetchClient = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      accessToken: async () => _accessToken,
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
+  }
+  return _fetchClient
+}
