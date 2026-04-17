@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ReportDialog } from '@/components/chat/report-dialog'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { getFetchClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { Message, Profile } from '@/lib/supabase/types'
 import { cn } from '@/lib/utils'
@@ -23,7 +24,11 @@ export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
   const matchId = params.matchId as string
+  // supabase (main client): realtime channel only
+  // db (fetch client): all REST data operations — bypasses the auth lock so
+  //   sends are never queued behind a concurrent token refresh
   const supabase = useSupabase()
+  const db = getFetchClient()
   const { user } = useAuthStore()
 
   const [messages, setMessages] = useState<Message[]>([])
@@ -43,7 +48,7 @@ export default function ChatPage() {
   }, [])
 
   const reloadMessages = useCallback(async () => {
-    const { data } = await supabase
+    const { data } = await db
       .from('messages')
       .select('*')
       .eq('match_id', matchId)
@@ -61,7 +66,7 @@ export default function ChatPage() {
     let cancelled = false
 
     const init = async () => {
-      const { data: match } = await supabase
+      const { data: match } = await db
         .from('matches')
         .select('user_a, user_b, is_active')
         .eq('id', matchId)
@@ -76,7 +81,7 @@ export default function ChatPage() {
       }
 
       const otherUserId = match.user_a === user.id ? match.user_b : match.user_a
-      const { data: other } = await supabase
+      const { data: other } = await db
         .from('profiles')
         .select('*')
         .eq('id', otherUserId)
@@ -85,7 +90,7 @@ export default function ChatPage() {
       if (cancelled) return
       setOtherUser(other)
 
-      const { data: msgs } = await supabase
+      const { data: msgs } = await db
         .from('messages')
         .select('*')
         .eq('match_id', matchId)
@@ -192,7 +197,7 @@ export default function ChatPage() {
       // is already in the database. .maybeSingle() returns null on 0 rows so
       // we can handle the two cases separately.
       const { data: sent, error } = await Promise.race([
-        supabase
+        db
           .from('messages')
           .insert({ match_id: matchId, sender_id: user.id, content })
           .select()
@@ -240,12 +245,12 @@ export default function ChatPage() {
 
   const handleBlock = async () => {
     if (!user || !otherUser) return
-    const { error } = await supabase.from('blocks').insert({
+    const { error } = await db.from('blocks').insert({
       blocker_id: user.id,
       blocked_id: otherUser.id,
     })
     if (!error) {
-      await supabase
+      await db
         .from('matches')
         .update({ is_active: false })
         .eq('id', matchId)
@@ -255,7 +260,7 @@ export default function ChatPage() {
   }
 
   const handleDeleteMessage = async (msgId: string) => {
-    await supabase
+    await db
       .from('messages')
       .update({ is_deleted: true })
       .eq('id', msgId)
