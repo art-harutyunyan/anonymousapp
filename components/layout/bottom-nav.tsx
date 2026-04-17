@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Compass, MessageCircle, Heart, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 const navItems = [
   { href: '/discover', icon: Compass,       label: 'Discover' },
@@ -16,11 +17,11 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname()
   const supabase = useSupabase()
-  const router = useRouter()
+  const { profile } = useAuthStore()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/auth')
+    window.location.href = '/auth'
   }
 
   return (
@@ -49,7 +50,9 @@ export function BottomNav() {
           className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-colors min-w-0 text-muted-foreground hover:text-foreground"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-[10px] font-medium leading-none">Logout</span>
+          <span className="text-[10px] font-medium leading-none max-w-[4rem] truncate">
+            {profile?.nickname ?? 'Logout'}
+          </span>
         </button>
       </div>
     </nav>

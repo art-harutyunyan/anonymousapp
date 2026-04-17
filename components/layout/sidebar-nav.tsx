@@ -27,7 +27,7 @@ export function SidebarNav() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/auth')
+    window.location.href = '/auth'
   }
 
   const initials = profile?.nickname
