@@ -186,6 +186,7 @@ export default function DiscoverPage() {
       <MatchModal
         open={matchModal.open}
         onClose={() => setMatchModal({ open: false, candidate: null, matchId: null })}
+        onKeepSwiping={fetchCandidates}
         candidate={matchModal.candidate}
         matchId={matchModal.matchId}
       />

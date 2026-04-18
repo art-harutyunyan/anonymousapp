@@ -10,11 +10,12 @@ import type { DiscoveryCandidate } from '@/lib/supabase/types'
 interface MatchModalProps {
   open: boolean
   onClose: () => void
+  onKeepSwiping?: () => void
   candidate: DiscoveryCandidate | null
   matchId: string | null
 }
 
-export function MatchModal({ open, onClose, candidate, matchId }: MatchModalProps) {
+export function MatchModal({ open, onClose, onKeepSwiping, candidate, matchId }: MatchModalProps) {
   const router = useRouter()
 
   if (!candidate) return null
@@ -61,7 +62,7 @@ export function MatchModal({ open, onClose, candidate, matchId }: MatchModalProp
           </div>
 
           <div className="flex gap-3 w-full pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>
+            <Button variant="outline" className="flex-1" onClick={() => { onClose(); onKeepSwiping?.() }}>
               Keep Swiping
             </Button>
             <Button

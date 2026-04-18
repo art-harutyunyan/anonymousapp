@@ -106,6 +106,17 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
+    // ── System channel ────────────────────────────────────────────────────
+    // Supabase only opens the WebSocket when a channel is subscribed.
+    // Without at least one subscription the heartbeat never fires and the
+    // connection indicator stays "Connecting" forever on pages that don't
+    // use realtime themselves (discover, settings, etc.).
+    // A lightweight channel with no listeners is enough to open the socket.
+    const systemChannel = client.channel('system')
+    systemChannel.subscribe((status) => {
+      log.debug('system channel', status)
+    })
+
     // navigator online/offline feeds into the same store so the pill flips to
     // "offline" immediately instead of waiting for the next heartbeat timeout.
     const handleOnline = () => {
@@ -124,6 +135,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe()
+      client.removeChannel(systemChannel)
       window.removeEventListener('online',  handleOnline)
       window.removeEventListener('offline', handleOffline)
     }

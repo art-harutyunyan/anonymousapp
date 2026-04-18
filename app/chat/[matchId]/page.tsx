@@ -44,6 +44,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -278,6 +279,7 @@ export default function ChatPage() {
       toast.error('Failed to send message')
     } finally {
       setSending(false)
+      inputRef.current?.focus()
     }
   }
 
@@ -440,6 +442,7 @@ export default function ChatPage() {
       <div className="px-4 py-3 border-t border-border bg-card/80 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Input
+            ref={inputRef}
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             onKeyDown={handleKeyDown}
