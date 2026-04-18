@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -39,6 +40,7 @@ const inputCls =
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AuthPage() {
+  const router = useRouter()
   const supabase = useSupabase()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -76,7 +78,8 @@ export default function AuthPage() {
       return
     }
     toast.success('Account created! Set up your profile to start matching.')
-    window.location.href = '/onboarding'
+    router.refresh()
+    router.push('/onboarding')
   }
 
   const handleSignIn = async (data: SignInData) => {
@@ -90,7 +93,8 @@ export default function AuthPage() {
       toast.error(error.message)
       return
     }
-    window.location.href = '/discover'
+    router.refresh()
+    router.push('/discover')
   }
 
   // Called from form onSubmit after e.preventDefault() is already called synchronously.
@@ -331,4 +335,3 @@ export default function AuthPage() {
     </div>
   )
 }
-

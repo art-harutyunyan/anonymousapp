@@ -17,7 +17,26 @@ export interface Profile {
   is_premium: boolean
   is_banned: boolean
   is_admin: boolean
+  is_bot: boolean
   onboarding_complete: boolean
+  created_at: string
+}
+
+export type LogEventType =
+  | 'user_signed_up'
+  | 'profile_completed'
+  | 'discovery_action'
+  | 'match_created'
+  | 'user_blocked'
+  | 'user_reported'
+  | 'user_banned'
+  | 'admin_action'
+
+export interface ActivityLog {
+  id: string
+  user_id: string | null
+  event_type: LogEventType
+  metadata: Record<string, unknown> | null
   created_at: string
 }
 

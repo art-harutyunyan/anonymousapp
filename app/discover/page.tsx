@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Compass, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/layout/app-shell'
 import { CandidateCard } from '@/components/discover/candidate-card'
 import { MatchModal } from '@/components/discover/match-modal'
@@ -76,7 +77,11 @@ export default function DiscoverPage() {
       }, { onConflict: 'from_user,to_user' })
 
     if (actionError) {
-      toast.error('Something went wrong. Please try again.')
+      if (actionError.message?.includes('daily_limit_reached')) {
+        toast.error("You've reached today's limit of 20 matches. Upgrade to Premium for unlimited.")
+      } else {
+        toast.error('Something went wrong. Please try again.')
+      }
       setActionLoading(false)
       return
     }
@@ -120,11 +125,14 @@ export default function DiscoverPage() {
         {/* Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
           {loading ? (
-            <div className="flex flex-col items-center gap-4 text-muted-foreground">
-              <div className="w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-              <p className="text-sm">Finding matches…</p>
+            <div className="w-full max-w-sm flex flex-col gap-4">
+              <Skeleton className="h-[420px] w-full rounded-3xl" />
+              <div className="flex gap-3">
+                <Skeleton className="h-12 flex-1 rounded-2xl" />
+                <Skeleton className="h-12 flex-1 rounded-2xl" />
+              </div>
             </div>
-          ) : !hasMore || candidates.length === 0 ? (
+          ) :!hasMore || candidates.length === 0 ? (
             <div className="text-center max-w-xs">
               <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                 <Compass className="w-9 h-9 text-muted-foreground" />

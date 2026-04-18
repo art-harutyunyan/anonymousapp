@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:users": "node scripts/seed-users.mjs",
+    "seed:bots": "node scripts/seed-bots.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

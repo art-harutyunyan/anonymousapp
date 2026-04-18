@@ -6,6 +6,7 @@ import { Heart, MessageCircle, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/layout/app-shell'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -90,12 +91,19 @@ export default function MatchesPage() {
 
         <div className="flex-1 px-4 py-4">
           {loading ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 max-w-xl">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 rounded-2xl bg-card animate-pulse" />
+                <div key={i} className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl">
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <div className="flex-1 flex flex-col gap-2">
+                    <Skeleton className="h-4 w-32 rounded" />
+                    <Skeleton className="h-3 w-48 rounded" />
+                  </div>
+                  <Skeleton className="h-3 w-12 rounded" />
+                </div>
               ))}
             </div>
-          ) : matches.length === 0 ? (
+          ) :matches.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-20 text-center">
               <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                 <Heart className="w-9 h-9 text-muted-foreground" />

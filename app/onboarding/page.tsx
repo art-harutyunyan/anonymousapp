@@ -389,9 +389,9 @@ export default function OnboardingPage() {
               </Button>
             ) : (
               <Button
-                type="submit"
                 className="flex-1 brand-gradient border-0 text-white"
                 disabled={saving}
+                onClick={handleSubmit(onSubmit)}
               >
                 {saving ? 'Saving…' : 'Start Matching ✦'}
               </Button>

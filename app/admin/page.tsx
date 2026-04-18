@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import {
   ShieldCheck, Users, MessageCircle, AlertTriangle,
-  CheckCircle, XCircle, Ban, Search
+  CheckCircle, XCircle, Ban, Search, Activity, ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { AppShell } from '@/components/layout/app-shell'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import type { Report, Profile } from '@/lib/supabase/types'
+import type { Report, Profile, ActivityLog, LogEventType } from '@/lib/supabase/types'
 import { cn } from '@/lib/utils'
 
 interface ReportWithProfiles extends Report {
@@ -31,6 +31,32 @@ interface Stats {
   bannedUsers: number
 }
 
+interface LogWithProfile extends ActivityLog {
+  profile: Pick<Profile, 'nickname' | 'avatar_url'> | null
+}
+
+const LOG_COLORS: Record<LogEventType, string> = {
+  user_signed_up:    'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+  profile_completed: 'text-sky-400 bg-sky-400/10 border-sky-400/20',
+  discovery_action:  'text-primary bg-primary/10 border-primary/20',
+  match_created:     'text-pink-400 bg-pink-400/10 border-pink-400/20',
+  user_blocked:      'text-orange-400 bg-orange-400/10 border-orange-400/20',
+  user_reported:     'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  user_banned:       'text-destructive bg-destructive/10 border-destructive/20',
+  admin_action:      'text-muted-foreground bg-secondary border-border',
+}
+
+const LOG_LABELS: Record<LogEventType, string> = {
+  user_signed_up:    'Signed up',
+  profile_completed: 'Profile set up',
+  discovery_action:  'Discovery',
+  match_created:     'Matched',
+  user_blocked:      'Blocked',
+  user_reported:     'Reported',
+  user_banned:       'Banned',
+  admin_action:      'Admin',
+}
+
 export default function AdminPage() {
   const supabase = useSupabase()
   const { user } = useAuthStore()
@@ -40,6 +66,12 @@ export default function AdminPage() {
   const [searchResults, setSearchResults] = useState<Profile[]>([])
   const [noteText, setNoteText] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState<LogWithProfile[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsFilter, setLogsFilter] = useState<LogEventType | 'all'>('all')
+  const [logsPage, setLogsPage] = useState(0)
+  const [logsHasMore, setLogsHasMore] = useState(true)
+  const LOG_PAGE_SIZE = 50
 
   useEffect(() => {
     if (!user) return
@@ -75,7 +107,10 @@ export default function AdminPage() {
   }, [user, supabase])
 
   const handleDismiss = async (reportId: string) => {
-    await supabase.from('reports').update({ status: 'reviewed' }).eq('id', reportId)
+    await Promise.all([
+      supabase.from('reports').update({ status: 'reviewed' }).eq('id', reportId),
+      supabase.rpc('log_event', { p_user_id: user!.id, p_event: 'admin_action', p_metadata: { action: 'dismiss_report', report_id: reportId } }),
+    ])
     setReports((prev) => prev.filter((r) => r.id !== reportId))
     setStats((s) => ({ ...s, pendingReports: s.pendingReports - 1 }))
     toast.success('Report dismissed')
@@ -90,6 +125,7 @@ export default function AdminPage() {
         admin_id: user!.id,
         note: note.trim(),
       }),
+      supabase.rpc('log_event', { p_user_id: user!.id, p_event: 'admin_action', p_metadata: { action: 'ban_user', target_user: userId, report_id: reportId } }),
     ])
     setReports((prev) => prev.filter((r) => r.id !== reportId))
     setStats((s) => ({
@@ -116,6 +152,39 @@ export default function AdminPage() {
       prev.map((p) => p.id === userId ? { ...p, is_banned: !currentBanned } : p)
     )
     toast.success(currentBanned ? 'User unbanned' : 'User banned')
+  }
+
+  const fetchLogs = async (filter: LogEventType | 'all', page: number, replace: boolean) => {
+    setLogsLoading(true)
+    let query = supabase
+      .from('activity_logs')
+      .select('*, profile:profiles(nickname, avatar_url)')
+      .order('created_at', { ascending: false })
+      .range(page * LOG_PAGE_SIZE, (page + 1) * LOG_PAGE_SIZE - 1)
+
+    if (filter !== 'all') query = query.eq('event_type', filter)
+
+    const { data } = await query
+    const rows = (data as unknown as LogWithProfile[]) ?? []
+    setLogs((prev) => replace ? rows : [...prev, ...rows])
+    setLogsHasMore(rows.length === LOG_PAGE_SIZE)
+    setLogsLoading(false)
+  }
+
+  const handleLogsTabOpen = () => {
+    if (logs.length === 0) fetchLogs('all', 0, true)
+  }
+
+  const handleLogsFilterChange = (filter: LogEventType | 'all') => {
+    setLogsFilter(filter)
+    setLogsPage(0)
+    fetchLogs(filter, 0, true)
+  }
+
+  const handleLogsLoadMore = () => {
+    const next = logsPage + 1
+    setLogsPage(next)
+    fetchLogs(logsFilter, next, false)
   }
 
   const STAT_CARDS = [
@@ -159,6 +228,10 @@ export default function AdminPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users">User Search</TabsTrigger>
+            <TabsTrigger value="logs" onClick={handleLogsTabOpen}>
+              <Activity className="w-3.5 h-3.5 mr-1.5" />
+              Activity Logs
+            </TabsTrigger>
           </TabsList>
 
           {/* Reports tab */}
@@ -250,6 +323,89 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </TabsContent>
+
+          {/* Activity logs tab */}
+          <TabsContent value="logs">
+            {/* Filter row */}
+            <div className="flex flex-wrap gap-2 mb-5">
+              {(['all', 'user_signed_up', 'profile_completed', 'discovery_action', 'match_created', 'user_blocked', 'user_reported', 'user_banned', 'admin_action'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => handleLogsFilterChange(f)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                    logsFilter === f
+                      ? f === 'all'
+                        ? 'bg-secondary border-border text-foreground'
+                        : LOG_COLORS[f as LogEventType]
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-border/60'
+                  )}
+                >
+                  {f === 'all' ? 'All events' : LOG_LABELS[f as LogEventType]}
+                </button>
+              ))}
+            </div>
+
+            {logsLoading && logs.length === 0 ? (
+              <div className="flex flex-col gap-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-12 rounded-xl bg-card animate-pulse" />
+                ))}
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="text-center py-16">
+                <Activity className="w-10 h-10 text-muted-foreground mx-auto mb-4 opacity-40" />
+                <p className="text-muted-foreground text-sm">No events recorded yet.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-3 px-4 py-3 bg-card border border-border rounded-xl hover:border-border/80 transition-colors"
+                    >
+                      <Badge
+                        variant="outline"
+                        className={cn('text-[10px] shrink-0 mt-0.5', LOG_COLORS[log.event_type])}
+                      >
+                        {LOG_LABELS[log.event_type]}
+                      </Badge>
+
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">
+                          {log.profile?.nickname ?? 'Anonymous'}
+                        </span>
+                        {log.metadata && Object.keys(log.metadata).length > 0 && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {Object.entries(log.metadata)
+                              .filter(([k]) => !['match_id', 'to_user', 'with_user', 'blocked_id', 'reported_id'].includes(k))
+                              .map(([k, v]) => `${k}: ${String(v)}`)
+                              .join(' · ')}
+                          </span>
+                        )}
+                      </div>
+
+                      <span className="text-xs text-muted-foreground shrink-0 mt-0.5">
+                        {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {logsHasMore && (
+                  <button
+                    className="w-full mt-4 py-2 text-sm text-muted-foreground border border-border rounded-xl hover:border-border/60 hover:text-foreground transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                    onClick={handleLogsLoadMore}
+                    disabled={logsLoading}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                    {logsLoading ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </>
             )}
           </TabsContent>
 

@@ -314,7 +314,11 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <Button type="submit" className="brand-gradient border-0 text-white w-full" disabled={saving}>
+            <Button
+              className="brand-gradient border-0 text-white w-full"
+              disabled={saving}
+              onClick={profileForm.handleSubmit(saveProfile)}
+            >
               {saving ? 'Saving…' : 'Save Changes'}
             </Button>
 
@@ -354,7 +358,11 @@ export default function SettingsPage() {
                 <p className="text-xs text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
               )}
             </div>
-            <Button type="submit" className="brand-gradient border-0 text-white" disabled={saving}>
+            <Button
+              className="brand-gradient border-0 text-white"
+              disabled={saving}
+              onClick={passwordForm.handleSubmit(savePassword)}
+            >
               {saving ? 'Updating…' : 'Update Password'}
             </Button>
           </form>

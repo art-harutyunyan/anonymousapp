@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
@@ -28,8 +29,9 @@ export default function ChatPage() {
   // db (fetch client): all REST data operations — bypasses the auth lock so
   //   sends are never queued behind a concurrent token refresh
   const supabase = useSupabase()
-  const db = getFetchClient()
-  const { user, profile } = useAuthStore()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getFetchClient() as any
+  const { user } = useAuthStore()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [otherUser, setOtherUser] = useState<Profile | null>(null)
@@ -70,7 +72,7 @@ export default function ChatPage() {
         .from('matches')
         .select('user_a, user_b, is_active')
         .eq('id', matchId)
-        .single()
+        .single() as { data: { user_a: string; user_b: string; is_active: boolean } | null }
 
       if (cancelled) return
 
@@ -197,11 +199,11 @@ export default function ChatPage() {
       // is already in the database. .maybeSingle() returns null on 0 rows so
       // we can handle the two cases separately.
       const { data: sent, error } = await Promise.race([
-        db
+        (db
           .from('messages')
           .insert({ match_id: matchId, sender_id: user.id, content })
           .select()
-          .maybeSingle(),
+          .maybeSingle() as Promise<{ data: Message | null; error: unknown }>),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('send_timeout')), 10_000)
         ),
@@ -275,13 +277,7 @@ export default function ChatPage() {
     : '??'
 
   return (
-    <div className="flex flex-col h-screen md:h-[calc(100vh)] md:ml-60 bg-background">
-      {/* Current user indicator */}
-      {user && (
-        <div className="bg-muted/60 border-b border-border px-4 py-1 text-center text-xs text-muted-foreground shrink-0">
-          Logged in as <strong className="text-foreground">{profile?.nickname ?? user.email}</strong>
-        </div>
-      )}
+    <div className="flex flex-col h-screen md:ml-60 bg-background">
       {/* Chat header */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
         <Button variant="ghost" size="icon" onClick={() => router.push('/matches')} className="shrink-0">
@@ -327,10 +323,14 @@ export default function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4" ref={scrollRef}>
         {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <div className="flex flex-col gap-3 px-4 py-4 max-w-2xl mx-auto w-full">
+            <div className="flex gap-3"><Skeleton className="w-8 h-8 rounded-full shrink-0" /><Skeleton className="h-10 w-48 rounded-2xl" /></div>
+            <div className="flex gap-3 self-end flex-row-reverse"><Skeleton className="w-8 h-8 rounded-full shrink-0" /><Skeleton className="h-10 w-56 rounded-2xl" /></div>
+            <div className="flex gap-3"><Skeleton className="w-8 h-8 rounded-full shrink-0" /><Skeleton className="h-16 w-64 rounded-2xl" /></div>
+            <div className="flex gap-3 self-end flex-row-reverse"><Skeleton className="w-8 h-8 rounded-full shrink-0" /><Skeleton className="h-10 w-40 rounded-2xl" /></div>
+            <div className="flex gap-3"><Skeleton className="w-8 h-8 rounded-full shrink-0" /><Skeleton className="h-10 w-52 rounded-2xl" /></div>
           </div>
-        ) : messages.length === 0 ? (
+        ) :messages.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">
               You matched! Say hello to <strong>{otherUser?.nickname ?? 'Anonymous'}</strong> 👋
