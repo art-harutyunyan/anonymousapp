@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/layout/app-shell'
-import { useSupabase } from '@/components/providers/supabase-provider'
+import { getFetchClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { INTENT_LABELS } from '@/lib/supabase/types'
 import type { Profile, Message } from '@/lib/supabase/types'
@@ -21,17 +21,18 @@ interface MatchRow {
 }
 
 export default function MatchesPage() {
-  const supabase = useSupabase()
-  const { user } = useAuthStore()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = getFetchClient() as any
+  const { user, loading: authLoading } = useAuthStore()
   const [matches, setMatches] = useState<MatchRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!user) return
+    if (authLoading || !user) return
 
     const fetchMatches = async () => {
-      // Get all active matches where I'm a participant
-      const { data: matchRows } = await supabase
+      setLoading(true)
+      const { data: matchRows } = await db
         .from('matches')
         .select('id, user_a, user_b, created_at')
         .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
@@ -43,14 +44,13 @@ export default function MatchesPage() {
         return
       }
 
-      // For each match, fetch the other user's profile and last message
       const enriched: MatchRow[] = await Promise.all(
-        matchRows.map(async (m) => {
+        matchRows.map(async (m: { id: string; user_a: string; user_b: string; created_at: string }) => {
           const otherUserId = m.user_a === user.id ? m.user_b : m.user_a
 
           const [{ data: otherUser }, { data: lastMsgs }] = await Promise.all([
-            supabase.from('profiles').select('*').eq('id', otherUserId).single(),
-            supabase
+            db.from('profiles').select('*').eq('id', otherUserId).single(),
+            db
               .from('messages')
               .select('*')
               .eq('match_id', m.id)
@@ -73,7 +73,7 @@ export default function MatchesPage() {
     }
 
     fetchMatches()
-  }, [user, supabase])
+  }, [authLoading, user, db])
 
   return (
     <AppShell>

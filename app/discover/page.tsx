@@ -8,17 +8,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/layout/app-shell'
 import { CandidateCard } from '@/components/discover/candidate-card'
 import { MatchModal } from '@/components/discover/match-modal'
-import { useSupabase } from '@/components/providers/supabase-provider'
+import { getFetchClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import type { DiscoveryCandidate } from '@/lib/supabase/types'
 
 export default function DiscoverPage() {
-  const supabase = useSupabase()
-  const { user, profile } = useAuthStore()
+  // All data operations go through the fetch client — it receives the token
+  // via callback rather than calling getSession(), so it's never blocked by a
+  // concurrent auth-lock token refresh (which would hang indefinitely and cause
+  // infinite loading).
+  const db = getFetchClient()
+  const { user, profile, loading: authLoading } = useAuthStore()
 
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [matchModal, setMatchModal] = useState<{
     open: boolean
@@ -29,7 +33,8 @@ export default function DiscoverPage() {
   const fetchCandidates = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const { data, error } = await supabase.rpc('get_discovery_candidates', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (db as any).rpc('get_discovery_candidates', {
       p_user_id: user.id,
     })
     setLoading(false)
@@ -39,11 +44,12 @@ export default function DiscoverPage() {
     }
     setCandidates(data ?? [])
     setCurrentIndex(0)
-  }, [user, supabase])
+  }, [user, db])
 
   useEffect(() => {
+    if (authLoading) return   // wait for auth before attempting to fetch
     fetchCandidates()
-  }, [fetchCandidates])
+  }, [authLoading, fetchCandidates])
 
   const currentCandidate = candidates[currentIndex] ?? null
   const hasMore = currentIndex < candidates.length
@@ -52,14 +58,14 @@ export default function DiscoverPage() {
     if (!user || !currentCandidate) return
     setActionLoading(true)
 
-    await supabase.from('discovery_actions').upsert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from('discovery_actions').upsert({
       from_user: user.id,
       to_user: currentCandidate.id,
       action: 'skip',
     }, { onConflict: 'from_user,to_user' })
 
     setActionLoading(false)
-    // Short delay for card animation
     setTimeout(() => setCurrentIndex((i) => i + 1), 300)
   }
 
@@ -67,8 +73,8 @@ export default function DiscoverPage() {
     if (!user || !currentCandidate) return
     setActionLoading(true)
 
-    // Record start_talking action
-    const { error: actionError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: actionError } = await (db as any)
       .from('discovery_actions')
       .upsert({
         from_user: user.id,
@@ -86,8 +92,8 @@ export default function DiscoverPage() {
       return
     }
 
-    // Try to create a match (mutual check happens inside the function)
-    const { data: matchId, error: matchError } = await supabase.rpc('try_create_match', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: matchId, error: matchError } = await (db as any).rpc('try_create_match', {
       p_actor_id: user.id,
       p_target_id: currentCandidate.id,
     })
@@ -95,12 +101,13 @@ export default function DiscoverPage() {
     setActionLoading(false)
 
     if (!matchError && matchId) {
-      // Mutual match!
       setMatchModal({ open: true, candidate: currentCandidate, matchId })
     }
 
     setTimeout(() => setCurrentIndex((i) => i + 1), 300)
   }
+
+  const showSkeleton = authLoading || loading
 
   return (
     <AppShell>
@@ -114,17 +121,17 @@ export default function DiscoverPage() {
               variant="ghost"
               size="icon"
               onClick={fetchCandidates}
-              disabled={loading}
+              disabled={showSkeleton}
               title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${showSkeleton ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-          {loading ? (
+          {showSkeleton ? (
             <div className="w-full max-w-sm flex flex-col gap-4">
               <Skeleton className="h-[420px] w-full rounded-3xl" />
               <div className="flex gap-3">
@@ -132,7 +139,7 @@ export default function DiscoverPage() {
                 <Skeleton className="h-12 flex-1 rounded-2xl" />
               </div>
             </div>
-          ) :!hasMore || candidates.length === 0 ? (
+          ) : !hasMore || candidates.length === 0 ? (
             <div className="text-center max-w-xs">
               <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
                 <Compass className="w-9 h-9 text-muted-foreground" />
@@ -148,7 +155,6 @@ export default function DiscoverPage() {
             </div>
           ) : (
             <div className="w-full max-w-sm">
-              {/* Stack hint */}
               {candidates.length - currentIndex > 1 && (
                 <div className="relative mb-0">
                   <div className="absolute -bottom-2 left-4 right-4 h-full bg-card border border-border rounded-3xl opacity-30" />
@@ -177,7 +183,6 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* Match modal */}
       <MatchModal
         open={matchModal.open}
         onClose={() => setMatchModal({ open: false, candidate: null, matchId: null })}

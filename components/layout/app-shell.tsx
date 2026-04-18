@@ -2,6 +2,7 @@
 
 import { SidebarNav } from './sidebar-nav'
 import { BottomNav } from './bottom-nav'
+import { ConnectionIndicator } from './connection-indicator'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -12,8 +13,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarNav />
       <main className="flex-1 md:ml-60 pb-20 md:pb-0">
         {profile && (
-          <div className="bg-muted/60 border-b border-border px-4 py-1 text-center text-xs text-muted-foreground">
-            Logged in as <strong className="text-foreground">{profile.nickname}</strong>
+          <div className="bg-muted/60 border-b border-border px-4 py-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span className="flex-1 text-center">
+              Logged in as <strong className="text-foreground">{profile.nickname}</strong>
+            </span>
+            <ConnectionIndicator className="shrink-0" />
           </div>
         )}
         {children}

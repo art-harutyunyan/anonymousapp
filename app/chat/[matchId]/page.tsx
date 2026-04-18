@@ -15,11 +15,15 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { ReportDialog } from '@/components/chat/report-dialog'
+import { ConnectionIndicator } from '@/components/layout/connection-indicator'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { getFetchClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { createLogger } from '@/lib/debug/log'
 import type { Message, Profile } from '@/lib/supabase/types'
 import { cn } from '@/lib/utils'
+
+const log = createLogger('chat')
 
 export default function ChatPage() {
   const params = useParams()
@@ -50,11 +54,18 @@ export default function ChatPage() {
   }, [])
 
   const reloadMessages = useCallback(async () => {
-    const { data } = await db
+    const t0 = performance.now()
+    const { data, error } = await db
       .from('messages')
       .select('*')
       .eq('match_id', matchId)
       .order('created_at', { ascending: true })
+    const dt = Math.round(performance.now() - t0)
+    if (error) {
+      log.error(`reload messages failed (${dt} ms)`, error)
+      return
+    }
+    log.debug(`reload messages ok (${dt} ms, ${data?.length ?? 0} rows)`)
     if (data) {
       setMessages(data)
       scrollToBottom()
@@ -68,44 +79,54 @@ export default function ChatPage() {
     let cancelled = false
 
     const init = async () => {
-      const { data: match } = await db
+      log.info('init', { matchId, userId: user.id })
+      const { data: match, error: matchErr } = await db
         .from('matches')
         .select('user_a, user_b, is_active')
         .eq('id', matchId)
-        .single() as { data: { user_a: string; user_b: string; is_active: boolean } | null }
+        .single() as { data: { user_a: string; user_b: string; is_active: boolean } | null; error: unknown }
 
       if (cancelled) return
 
+      if (matchErr) log.error('match fetch failed', matchErr)
+
       if (!match?.is_active) {
+        log.warn('match inactive, redirecting', match)
         toast.error('This match is no longer active')
         router.push('/matches')
         return
       }
 
       const otherUserId = match.user_a === user.id ? match.user_b : match.user_a
-      const { data: other } = await db
+      const { data: other, error: profileErr } = await db
         .from('profiles')
         .select('*')
         .eq('id', otherUserId)
         .single()
+      if (profileErr) log.warn('other profile fetch failed', profileErr)
 
       if (cancelled) return
       setOtherUser(other)
 
-      const { data: msgs } = await db
+      const { data: msgs, error: msgsErr } = await db
         .from('messages')
         .select('*')
         .eq('match_id', matchId)
         .order('created_at', { ascending: true })
+      if (msgsErr) log.error('initial messages fetch failed', msgsErr)
 
       if (cancelled) return
+      log.info(`loaded ${msgs?.length ?? 0} messages`)
       setMessages(msgs ?? [])
       setLoading(false)
       scrollToBottom()
     }
 
     init()
-    return () => { cancelled = true }
+    return () => {
+      log.debug('init cancelled on unmount')
+      cancelled = true
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, matchId])
 
@@ -115,8 +136,11 @@ export default function ChatPage() {
   useEffect(() => {
     if (!user?.id || !matchId) return
 
+    const topic = `chat:${matchId}`
+    log.info('subscribing to channel', topic)
+
     const channel = supabase
-      .channel(`chat:${matchId}`)
+      .channel(topic)
       .on(
         'postgres_changes',
         {
@@ -127,9 +151,13 @@ export default function ChatPage() {
         },
         (payload) => {
           const incoming = payload.new as Message
+          log.debug('realtime INSERT', { id: incoming.id, from: incoming.sender_id })
           setMessages((prev) => {
             // Already present (e.g. from the insert's RETURNING or a prior reload)
-            if (prev.some((m) => m.id === incoming.id)) return prev
+            if (prev.some((m) => m.id === incoming.id)) {
+              log.debug('realtime INSERT dedup (already present)', incoming.id)
+              return prev
+            }
             // Replace any temp optimistic message for this content+sender so we
             // don't show a duplicate when the RETURNING path returned null.
             const withoutTemp = prev.filter(
@@ -145,12 +173,17 @@ export default function ChatPage() {
           scrollToBottom()
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
+        log.info(`channel status: ${status}`, err ?? '')
         // Fill any gap after initial connect or automatic reconnect
         if (status === 'SUBSCRIBED') reloadMessages()
+        if (status === 'CHANNEL_ERROR') log.error('channel error', err)
+        if (status === 'TIMED_OUT')     log.warn('channel timed out — will retry')
+        if (status === 'CLOSED')        log.warn('channel closed')
       })
 
     const handleVisibilityChange = () => {
+      log.debug('visibility', document.visibilityState)
       if (document.visibilityState !== 'visible') return
       // Reload messages to fill any gap while the tab was hidden.
       // Supabase refreshes the auth token automatically on the next API call —
@@ -162,6 +195,7 @@ export default function ChatPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      log.info('unsubscribing channel', topic)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       supabase.removeChannel(channel)
     }
@@ -188,6 +222,8 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimistic])
     scrollToBottom()
 
+    const t0 = performance.now()
+    log.info('sendMessage start', { tempId, len: content.length })
     try {
       // Race the insert against a 10 s timeout. If the network stack isn't
       // restored yet after a browser wake-up, fetch can hang indefinitely —
@@ -209,10 +245,15 @@ export default function ChatPage() {
         ),
       ])
 
-      if (error) throw error
+      const dt = Math.round(performance.now() - t0)
+      if (error) {
+        log.error(`sendMessage insert error (${dt} ms)`, error)
+        throw error
+      }
 
       if (sent) {
         // Normal path: swap the temp placeholder for the confirmed DB row.
+        log.info(`sendMessage ok (${dt} ms)`, { id: sent.id })
         setMessages((prev) => {
           if (prev.some((m) => m.id === tempId)) {
             return prev.map((m) => (m.id === tempId ? sent : m))
@@ -225,11 +266,13 @@ export default function ChatPage() {
       } else {
         // INSERT succeeded but RETURNING was silently blocked by RLS.
         // The message IS in the database — reload to replace the temp row.
+        log.warn(`sendMessage: RETURNING blocked by RLS (${dt} ms) — reloading`)
         reloadMessages()
       }
     } catch (err) {
       // Real insert failure or timeout: roll back and restore input
-      console.error('[chat] sendMessage failed:', err)
+      const dt = Math.round(performance.now() - t0)
+      log.error(`sendMessage failed (${dt} ms)`, err)
       setMessages((prev) => prev.filter((m) => m.id !== tempId))
       setMessageText(content)
       toast.error('Failed to send message')
@@ -295,6 +338,8 @@ export default function ChatPage() {
             <p className="text-xs text-muted-foreground truncate">{otherUser.country}</p>
           )}
         </div>
+
+        <ConnectionIndicator className="shrink-0" />
 
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-secondary transition-colors shrink-0">
