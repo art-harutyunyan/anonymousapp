@@ -98,6 +98,12 @@
     @apply font-sans;
     color-scheme: dark;
   }
+  /* iOS Safari: remove 300ms tap delay and ensure buttons register as
+     interactive so click events fire on real devices (not just DevTools sim) */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    cursor: pointer;
+  }
 }
 
 /* Scrollbar */

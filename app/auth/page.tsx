@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { cn } from '@/lib/utils'
+
+// ─── Validation schemas ───────────────────────────────────────────────────────
 
 const signUpSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -31,16 +29,34 @@ const signInSchema = z.object({
 type SignUpData = z.infer<typeof signUpSchema>
 type SignInData = z.infer<typeof signInSchema>
 
-function AuthPageInner() {
-  const searchParams = useSearchParams()
+// ─── Shared input styling — native <input>, no @base-ui dependency ─────────
+const inputCls =
+  'w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-base ' +
+  'outline-none transition-colors placeholder:text-muted-foreground ' +
+  'focus:border-ring focus:ring-2 focus:ring-ring/30 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed'
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function AuthPage() {
   const supabase = useSupabase()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const isBanned = searchParams.get('banned') === 'true'
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [isBanned, setIsBanned] = useState(false)
+
+  useEffect(() => {
+    setIsBanned(new URLSearchParams(window.location.search).get('banned') === 'true')
+  }, [])
 
   const signUpForm = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { email: '', password: '', confirmPassword: '', age18: undefined as unknown as true },
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      age18: undefined as unknown as true,
+    },
   })
 
   const signInForm = useForm<SignInData>({
@@ -71,15 +87,20 @@ function AuthPageInner() {
     })
     setLoading(false)
     if (error) {
-      toast.error('Invalid email or password')
+      toast.error(error.message)
       return
     }
     window.location.href = '/discover'
   }
 
+  // Called from form onSubmit after e.preventDefault() is already called synchronously.
+  // Using form + type="submit" so iOS Safari handles keyboard dismissal + tap in one gesture.
+  const submitSignIn = () => { if (!loading) signInForm.handleSubmit(handleSignIn)() }
+  const submitSignUp = () => { if (!loading) signUpForm.handleSubmit(handleSignUp)() }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background">
-      {/* Glow */}
+      {/* Background glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-sm relative">
@@ -92,139 +113,215 @@ function AuthPageInner() {
         {isBanned && (
           <div className="mb-6 p-4 rounded-xl border border-destructive/40 bg-destructive/10 flex items-start gap-3">
             <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">Your account has been suspended for violating our community guidelines.</p>
+            <p className="text-sm text-destructive">
+              Your account has been suspended for violating our community guidelines.
+            </p>
           </div>
         )}
 
         <div className="bg-card border border-border rounded-2xl p-6">
-          <Tabs defaultValue="signin">
-            <TabsList className="w-full mb-6">
-              <TabsTrigger value="signin" className="flex-1">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="flex-1">Sign Up</TabsTrigger>
-            </TabsList>
+          {/* Tab switcher — native <button>, no library dependency */}
+          <div className="flex bg-muted rounded-lg p-[3px] mb-6">
+            <button
+              type="button"
+              onClick={() => setMode('signin')}
+              className={cn(
+                'flex-1 py-2 text-sm font-medium rounded-md transition-colors',
+                mode === 'signin'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              )}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('signup')}
+              className={cn(
+                'flex-1 py-2 text-sm font-medium rounded-md transition-colors',
+                mode === 'signup'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              )}
+            >
+              Sign Up
+            </button>
+          </div>
 
-            {/* Sign In */}
-            <TabsContent value="signin">
-              <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="si-email">Email</Label>
-                  <Input
-                    id="si-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    {...signInForm.register('email')}
+          {/* ── Sign In ── */}
+          {mode === 'signin' && (
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                submitSignIn()
+              }}
+              className="flex flex-col gap-4"
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="si-email" className="text-sm font-medium leading-none">
+                  Email
+                </label>
+                <input
+                  id="si-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className={inputCls}
+                  {...signInForm.register('email')}
+                />
+                {signInForm.formState.errors.email && (
+                  <p className="text-xs text-destructive">{signInForm.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="si-password" className="text-sm font-medium leading-none">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="si-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className={cn(inputCls, 'pr-10')}
+                    {...signInForm.register('password')}
                   />
-                  {signInForm.formState.errors.email && (
-                    <p className="text-xs text-destructive">{signInForm.formState.errors.email.message}</p>
-                  )}
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+                {signInForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{signInForm.formState.errors.password.message}</p>
+                )}
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="si-password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="si-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                      className="pr-10"
-                      {...signInForm.register('password')}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {signInForm.formState.errors.password && (
-                    <p className="text-xs text-destructive">{signInForm.formState.errors.password.message}</p>
-                  )}
-                </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full brand-gradient rounded-lg py-3 text-white text-sm font-medium mt-1 disabled:opacity-50"
+              >
+                {loading ? 'Signing in…' : 'Sign In'}
+              </button>
+            </form>
+          )}
 
-                <Button type="submit" className="w-full brand-gradient border-0 text-white mt-1" disabled={loading}>
-                  {loading ? 'Signing in…' : 'Sign In'}
-                </Button>
-              </form>
-            </TabsContent>
+          {/* ── Sign Up ── */}
+          {mode === 'signup' && (
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                submitSignUp()
+              }}
+              className="flex flex-col gap-4"
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="su-email" className="text-sm font-medium leading-none">
+                  Email
+                </label>
+                <input
+                  id="su-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className={inputCls}
+                  {...signUpForm.register('email')}
+                />
+                {signUpForm.formState.errors.email && (
+                  <p className="text-xs text-destructive">{signUpForm.formState.errors.email.message}</p>
+                )}
+              </div>
 
-            {/* Sign Up */}
-            <TabsContent value="signup">
-              <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="su-email">Email</Label>
-                  <Input
-                    id="su-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    {...signUpForm.register('email')}
-                  />
-                  {signUpForm.formState.errors.email && (
-                    <p className="text-xs text-destructive">{signUpForm.formState.errors.email.message}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="su-password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="su-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      className="pr-10"
-                      {...signUpForm.register('password')}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {signUpForm.formState.errors.password && (
-                    <p className="text-xs text-destructive">{signUpForm.formState.errors.password.message}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="su-confirm">Confirm Password</Label>
-                  <Input
-                    id="su-confirm"
-                    type="password"
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="su-password" className="text-sm font-medium leading-none">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="su-password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    {...signUpForm.register('confirmPassword')}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className={cn(inputCls, 'pr-10')}
+                    {...signUpForm.register('password')}
                   />
-                  {signUpForm.formState.errors.confirmPassword && (
-                    <p className="text-xs text-destructive">{signUpForm.formState.errors.confirmPassword.message}</p>
-                  )}
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 accent-primary"
-                    {...signUpForm.register('age18')}
-                  />
-                  <span className="text-sm text-muted-foreground leading-snug">
-                    I confirm I am <strong className="text-foreground">18 years or older</strong> and agree to the Terms of Service
-                  </span>
-                </label>
-                {signUpForm.formState.errors.age18 && (
-                  <p className="text-xs text-destructive -mt-2">{signUpForm.formState.errors.age18.message}</p>
+                {signUpForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{signUpForm.formState.errors.password.message}</p>
                 )}
+              </div>
 
-                <Button type="submit" className="w-full brand-gradient border-0 text-white mt-1" disabled={loading}>
-                  {loading ? 'Creating account…' : 'Create Account'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="su-confirm" className="text-sm font-medium leading-none">
+                  Confirm Password
+                </label>
+                <input
+                  id="su-confirm"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className={inputCls}
+                  {...signUpForm.register('confirmPassword')}
+                />
+                {signUpForm.formState.errors.confirmPassword && (
+                  <p className="text-xs text-destructive">{signUpForm.formState.errors.confirmPassword.message}</p>
+                )}
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-primary"
+                  {...signUpForm.register('age18')}
+                />
+                <span className="text-sm text-muted-foreground leading-snug">
+                  I confirm I am <strong className="text-foreground">18 years or older</strong> and agree
+                  to the Terms of Service
+                </span>
+              </label>
+              {signUpForm.formState.errors.age18 && (
+                <p className="text-xs text-destructive -mt-2">{signUpForm.formState.errors.age18.message}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full brand-gradient rounded-lg py-3 text-white text-sm font-medium mt-1 disabled:opacity-50"
+              >
+                {loading ? 'Creating account…' : 'Create Account'}
+              </button>
+            </form>
+          )}
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
@@ -235,10 +332,3 @@ function AuthPageInner() {
   )
 }
 
-export default function AuthPage() {
-  return (
-    <Suspense>
-      <AuthPageInner />
-    </Suspense>
-  )
-}

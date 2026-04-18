@@ -29,7 +29,7 @@ export default function ChatPage() {
   //   sends are never queued behind a concurrent token refresh
   const supabase = useSupabase()
   const db = getFetchClient()
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [otherUser, setOtherUser] = useState<Profile | null>(null)
@@ -276,6 +276,12 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen md:h-[calc(100vh)] md:ml-60 bg-background">
+      {/* Current user indicator */}
+      {user && (
+        <div className="bg-muted/60 border-b border-border px-4 py-1 text-center text-xs text-muted-foreground shrink-0">
+          Logged in as <strong className="text-foreground">{profile?.nickname ?? user.email}</strong>
+        </div>
+      )}
       {/* Chat header */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
         <Button variant="ghost" size="icon" onClick={() => router.push('/matches')} className="shrink-0">
