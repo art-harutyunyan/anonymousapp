@@ -121,6 +121,7 @@ export default function ChatPage() {
       setMessages(msgs ?? [])
       setLoading(false)
       scrollToBottom()
+      db.rpc('mark_match_read', { p_match_id: matchId })
     }
 
     init()
@@ -172,6 +173,23 @@ export default function ChatPage() {
             return [...withoutTemp, incoming]
           })
           scrollToBottom()
+          if (incoming.sender_id !== user.id && document.visibilityState === 'visible') {
+            db.rpc('mark_match_read', { p_match_id: matchId })
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message
+          log.debug('realtime UPDATE', { id: updated.id, is_deleted: updated.is_deleted })
+          setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
         }
       )
       .subscribe((status, err) => {
@@ -191,6 +209,7 @@ export default function ChatPage() {
       // calling refreshSession() manually causes a lock conflict with the
       // client's own refresh mechanism, so we let it handle auth itself.
       reloadMessages()
+      db.rpc('mark_match_read', { p_match_id: matchId })
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)

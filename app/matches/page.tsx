@@ -12,12 +12,14 @@ import { getFetchClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { INTENT_LABELS } from '@/lib/supabase/types'
 import type { Profile, Message } from '@/lib/supabase/types'
+import { cn } from '@/lib/utils'
 
 interface MatchRow {
   id: string
   created_at: string
   other_user: Profile
   last_message: Message | null
+  unread_count: number
 }
 
 export default function MatchesPage() {
@@ -34,7 +36,7 @@ export default function MatchesPage() {
       setLoading(true)
       const { data: matchRows } = await db
         .from('matches')
-        .select('id, user_a, user_b, created_at')
+        .select('id, user_a, user_b, created_at, last_read_at_a, last_read_at_b')
         .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
@@ -45,10 +47,11 @@ export default function MatchesPage() {
       }
 
       const enriched: MatchRow[] = await Promise.all(
-        matchRows.map(async (m: { id: string; user_a: string; user_b: string; created_at: string }) => {
+        matchRows.map(async (m: { id: string; user_a: string; user_b: string; created_at: string; last_read_at_a: string | null; last_read_at_b: string | null }) => {
           const otherUserId = m.user_a === user.id ? m.user_b : m.user_a
+          const lastReadAt = (m.user_a === user.id ? m.last_read_at_a : m.last_read_at_b) ?? '1970-01-01T00:00:00Z'
 
-          const [{ data: otherUser }, { data: lastMsgs }] = await Promise.all([
+          const [{ data: otherUser }, { data: lastMsgs }, { count: unreadCount }] = await Promise.all([
             db.from('profiles').select('*').eq('id', otherUserId).single(),
             db
               .from('messages')
@@ -57,6 +60,13 @@ export default function MatchesPage() {
               .eq('is_deleted', false)
               .order('created_at', { ascending: false })
               .limit(1),
+            db
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('match_id', m.id)
+              .eq('is_deleted', false)
+              .neq('sender_id', user.id)
+              .gt('created_at', lastReadAt),
           ])
 
           return {
@@ -64,6 +74,7 @@ export default function MatchesPage() {
             created_at: m.created_at,
             other_user: otherUser!,
             last_message: lastMsgs?.[0] ?? null,
+            unread_count: unreadCount ?? 0,
           }
         })
       )
@@ -140,14 +151,20 @@ export default function MatchesPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-semibold text-sm truncate">
+                        <span className={cn(
+                          'text-sm truncate',
+                          match.unread_count > 0 ? 'font-bold' : 'font-semibold'
+                        )}>
                           {other.nickname ?? 'Anonymous'}
                         </span>
                         <span className="text-xs text-muted-foreground shrink-0">
                           {other.age} · {INTENT_LABELS[other.intent!]}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className={cn(
+                        'text-sm truncate',
+                        match.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                      )}>
                         {match.last_message
                           ? match.last_message.content
                           : <span className="italic">Say hello 👋</span>
@@ -163,6 +180,11 @@ export default function MatchesPage() {
                         </span>
                       ) : (
                         <MessageCircle className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                      {match.unread_count > 0 && (
+                        <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full brand-gradient text-white text-[10px] font-bold flex items-center justify-center">
+                          {match.unread_count > 99 ? '99+' : match.unread_count}
+                        </span>
                       )}
                     </div>
                   </Link>
