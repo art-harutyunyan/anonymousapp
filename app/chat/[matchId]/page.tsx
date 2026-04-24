@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
 import { toast } from 'sonner'
 import {
   ArrowLeft, Send, MoreVertical, ShieldAlert, UserX, Trash2
@@ -29,9 +29,6 @@ export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
   const matchId = params.matchId as string
-  // supabase (main client): realtime channel only
-  // db (fetch client): all REST data operations — bypasses the auth lock so
-  //   sends are never queued behind a concurrent token refresh
   const supabase = useSupabase()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = getFetchClient() as any
@@ -74,7 +71,6 @@ export default function ChatPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId])
 
-  // Initialise match data and message history once
   useEffect(() => {
     if (!user?.id || !matchId) return
     let cancelled = false
@@ -131,9 +127,6 @@ export default function ChatPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, matchId])
 
-  // Realtime subscription — one channel for the lifetime of the page.
-  // Supabase's WS client reconnects automatically; we don't rebuild the
-  // channel on visibility change. On wake-up we reload messages to fill the gap.
   useEffect(() => {
     if (!user?.id || !matchId) return
 
@@ -154,13 +147,10 @@ export default function ChatPage() {
           const incoming = payload.new as Message
           log.debug('realtime INSERT', { id: incoming.id, from: incoming.sender_id })
           setMessages((prev) => {
-            // Already present (e.g. from the insert's RETURNING or a prior reload)
             if (prev.some((m) => m.id === incoming.id)) {
               log.debug('realtime INSERT dedup (already present)', incoming.id)
               return prev
             }
-            // Replace any temp optimistic message for this content+sender so we
-            // don't show a duplicate when the RETURNING path returned null.
             const withoutTemp = prev.filter(
               (m) =>
                 !(
@@ -176,7 +166,6 @@ export default function ChatPage() {
       )
       .subscribe((status, err) => {
         log.info(`channel status: ${status}`, err ?? '')
-        // Fill any gap after initial connect or automatic reconnect
         if (status === 'SUBSCRIBED') reloadMessages()
         if (status === 'CHANNEL_ERROR') log.error('channel error', err)
         if (status === 'TIMED_OUT')     log.warn('channel timed out — will retry')
@@ -186,10 +175,6 @@ export default function ChatPage() {
     const handleVisibilityChange = () => {
       log.debug('visibility', document.visibilityState)
       if (document.visibilityState !== 'visible') return
-      // Reload messages to fill any gap while the tab was hidden.
-      // Supabase refreshes the auth token automatically on the next API call —
-      // calling refreshSession() manually causes a lock conflict with the
-      // client's own refresh mechanism, so we let it handle auth itself.
       reloadMessages()
     }
 
@@ -209,8 +194,6 @@ export default function ChatPage() {
     setSending(true)
     setMessageText('')
 
-    // Optimistically show the message immediately so the sender isn't left
-    // wondering if it went through, especially right after a reconnect.
     const tempId = `temp-${Date.now()}`
     const optimistic: Message = {
       id: tempId,
@@ -226,15 +209,6 @@ export default function ChatPage() {
     const t0 = performance.now()
     log.info('sendMessage start', { tempId, len: content.length })
     try {
-      // Race the insert against a 10 s timeout. If the network stack isn't
-      // restored yet after a browser wake-up, fetch can hang indefinitely —
-      // without a timeout, finally never runs and the input stays locked.
-      //
-      // .maybeSingle() instead of .single(): if the INSERT succeeds but the
-      // RETURNING select is blocked by RLS (returns 0 rows), .single() would
-      // throw PGRST116 and we'd show "Failed to send" even though the message
-      // is already in the database. .maybeSingle() returns null on 0 rows so
-      // we can handle the two cases separately.
       const { data: sent, error } = await Promise.race([
         (db
           .from('messages')
@@ -253,7 +227,6 @@ export default function ChatPage() {
       }
 
       if (sent) {
-        // Normal path: swap the temp placeholder for the confirmed DB row.
         log.info(`sendMessage ok (${dt} ms)`, { id: sent.id })
         setMessages((prev) => {
           if (prev.some((m) => m.id === tempId)) {
@@ -265,13 +238,10 @@ export default function ChatPage() {
           )
         })
       } else {
-        // INSERT succeeded but RETURNING was silently blocked by RLS.
-        // The message IS in the database — reload to replace the temp row.
         log.warn(`sendMessage: RETURNING blocked by RLS (${dt} ms) — reloading`)
         reloadMessages()
       }
     } catch (err) {
-      // Real insert failure or timeout: roll back and restore input
       const dt = Math.round(performance.now() - t0)
       log.error(`sendMessage failed (${dt} ms)`, err)
       setMessages((prev) => prev.filter((m) => m.id !== tempId))
@@ -324,28 +294,28 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen md:ml-60 bg-background">
       {/* Chat header */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-card/80 backdrop-blur-md shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/matches')} className="shrink-0">
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-white/80 backdrop-blur-xl shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => router.push('/matches')} className="shrink-0 text-foreground/50 hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
         <Avatar className="w-8 h-8">
           <AvatarImage src={otherUser?.avatar_url ?? undefined} />
-          <AvatarFallback className="bg-primary/20 text-primary text-xs">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{otherUser?.nickname ?? 'Anonymous'}</p>
+          <p className="font-semibold text-sm truncate text-foreground">{otherUser?.nickname ?? 'Anonymous'}</p>
           {otherUser?.country && (
-            <p className="text-xs text-muted-foreground truncate">{otherUser.country}</p>
+            <p className="text-xs text-foreground/40 truncate">{otherUser.country}</p>
           )}
         </div>
 
         <ConnectionIndicator className="shrink-0" />
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-secondary transition-colors shrink-0">
-            <MoreVertical className="w-4 h-4" />
+          <DropdownMenuTrigger className="inline-flex items-center justify-center w-9 h-9 rounded-md hover:bg-black/[0.04] transition-colors shrink-0">
+            <MoreVertical className="w-4 h-4 text-foreground/50" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
@@ -379,8 +349,8 @@ export default function ChatPage() {
           </div>
         ) :messages.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-sm text-muted-foreground">
-              You matched! Say hello to <strong>{otherUser?.nickname ?? 'Anonymous'}</strong> 👋
+            <p className="text-sm text-foreground/45">
+              You matched! Say hello to <strong className="text-foreground">{otherUser?.nickname ?? 'Anonymous'}</strong> 👋
             </p>
           </div>
         ) : (
@@ -395,7 +365,7 @@ export default function ChatPage() {
               return (
                 <div key={msg.id}>
                   {showTime && (
-                    <p className="text-center text-xs text-muted-foreground my-3">
+                    <p className="text-center text-xs text-foreground/35 my-3">
                       {format(new Date(msg.created_at), 'PPp')}
                     </p>
                   )}
@@ -403,14 +373,14 @@ export default function ChatPage() {
                     {!isMe && (
                       <Avatar className="w-6 h-6 mb-1 shrink-0">
                         <AvatarImage src={otherUser?.avatar_url ?? undefined} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{initials}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-semibold">{initials}</AvatarFallback>
                       </Avatar>
                     )}
                     <div className={cn(
                       'group relative max-w-[72%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
                       isMe
                         ? 'brand-gradient text-white rounded-br-sm'
-                        : 'bg-card border border-border rounded-bl-sm',
+                        : 'bg-white border border-black/[0.06] text-foreground rounded-bl-sm',
                       msg.is_deleted && 'opacity-50'
                     )}>
                       {msg.is_deleted ? (
@@ -419,14 +389,13 @@ export default function ChatPage() {
                         msg.content
                       )}
 
-                      {/* Delete own message */}
                       {isMe && !msg.is_deleted && (
                         <button
-                          className="absolute -top-2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-secondary border border-border"
+                          className="absolute -top-2 -left-6 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-white border border-black/[0.08] shadow-sm"
                           onClick={() => handleDeleteMessage(msg.id)}
                           title="Delete message"
                         >
-                          <Trash2 className="w-3 h-3 text-muted-foreground" />
+                          <Trash2 className="w-3 h-3 text-foreground/45" />
                         </button>
                       )}
                     </div>
@@ -439,7 +408,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-border bg-card/80 backdrop-blur-md shrink-0">
+      <div className="px-4 py-3 border-t border-border bg-white/80 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Input
             ref={inputRef}
@@ -447,21 +416,21 @@ export default function ChatPage() {
             onChange={(e) => setMessageText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message…"
-            className="flex-1 bg-secondary border-0 focus-visible:ring-primary/30 rounded-xl"
+            className="flex-1 bg-black/[0.04] border-0 focus-visible:ring-primary/25 rounded-xl text-foreground placeholder:text-foreground/30"
             maxLength={2000}
             disabled={sending}
             autoFocus
           />
           <Button
             size="icon"
-            className="brand-gradient border-0 text-white w-10 h-10 shrink-0"
+            className="brand-gradient border-0 text-white w-10 h-10 shrink-0 rounded-xl shadow-[0_4px_16px_rgba(124,58,237,0.25)]"
             onClick={sendMessage}
             disabled={!messageText.trim() || sending}
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-1.5">
+        <p className="text-center text-xs text-foreground/30 mt-1.5">
           {messageText.length}/2000
         </p>
       </div>

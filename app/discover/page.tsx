@@ -13,10 +13,6 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import type { DiscoveryCandidate } from '@/lib/supabase/types'
 
 export default function DiscoverPage() {
-  // All data operations go through the fetch client — it receives the token
-  // via callback rather than calling getSession(), so it's never blocked by a
-  // concurrent auth-lock token refresh (which would hang indefinitely and cause
-  // infinite loading).
   const db = getFetchClient()
   const { user, profile, loading: authLoading } = useAuthStore()
 
@@ -47,7 +43,7 @@ export default function DiscoverPage() {
   }, [user, db])
 
   useEffect(() => {
-    if (authLoading) return   // wait for auth before attempting to fetch
+    if (authLoading) return
     fetchCandidates()
   }, [authLoading, fetchCandidates])
 
@@ -113,7 +109,7 @@ export default function DiscoverPage() {
     <AppShell>
       <div className="min-h-screen flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md px-4 h-14 flex items-center gap-3">
+        <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-xl px-4 h-14 flex items-center gap-3">
           <Compass className="w-5 h-5 text-primary" />
           <h1 className="font-semibold">Discover</h1>
           <div className="ml-auto">
@@ -123,6 +119,7 @@ export default function DiscoverPage() {
               onClick={fetchCandidates}
               disabled={showSkeleton}
               title="Refresh"
+              className="text-foreground/50 hover:text-foreground"
             >
               <RefreshCw className={`w-4 h-4 ${showSkeleton ? 'animate-spin' : ''}`} />
             </Button>
@@ -135,20 +132,23 @@ export default function DiscoverPage() {
             <div className="w-full max-w-sm flex flex-col gap-4">
               <Skeleton className="h-[420px] w-full rounded-3xl" />
               <div className="flex gap-3">
-                <Skeleton className="h-12 flex-1 rounded-2xl" />
-                <Skeleton className="h-12 flex-1 rounded-2xl" />
+                <Skeleton className="h-12 flex-1 rounded-full" />
+                <Skeleton className="h-12 flex-1 rounded-full" />
               </div>
             </div>
           ) : !hasMore || candidates.length === 0 ? (
             <div className="text-center max-w-xs">
-              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
-                <Compass className="w-9 h-9 text-muted-foreground" />
+              <div className="w-20 h-20 rounded-full bg-black/[0.04] flex items-center justify-center mx-auto mb-6">
+                <Compass className="w-9 h-9 text-foreground/35" />
               </div>
-              <h2 className="text-xl font-semibold mb-2">No more candidates</h2>
-              <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
+              <h2 className="text-xl font-bold font-display mb-2">No more candidates</h2>
+              <p className="text-foreground/45 text-sm mb-6 leading-relaxed">
                 You&apos;ve seen everyone compatible for now. Check back later or refresh to see new people.
               </p>
-              <Button className="brand-gradient border-0 text-white" onClick={fetchCandidates}>
+              <Button
+                className="brand-gradient border-0 text-white rounded-full px-8 shadow-[0_6px_28px_rgba(124,58,237,0.3)]"
+                onClick={fetchCandidates}
+              >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
@@ -157,8 +157,8 @@ export default function DiscoverPage() {
             <div className="w-full max-w-sm">
               {candidates.length - currentIndex > 1 && (
                 <div className="relative mb-0">
-                  <div className="absolute -bottom-2 left-4 right-4 h-full bg-card border border-border rounded-3xl opacity-30" />
-                  <div className="absolute -bottom-1 left-2 right-2 h-full bg-card border border-border rounded-3xl opacity-50" />
+                  <div className="absolute -bottom-2 left-4 right-4 h-full bg-white/60 border border-black/[0.06] rounded-3xl opacity-30" />
+                  <div className="absolute -bottom-1 left-2 right-2 h-full bg-white/70 border border-black/[0.06] rounded-3xl opacity-50" />
                 </div>
               )}
 
@@ -175,7 +175,7 @@ export default function DiscoverPage() {
                 )}
               </div>
 
-              <p className="text-center text-xs text-muted-foreground mt-4">
+              <p className="text-center text-xs text-foreground/35 mt-4">
                 {candidates.length - currentIndex - 1} more candidate{candidates.length - currentIndex - 1 !== 1 ? 's' : ''} in queue
               </p>
             </div>

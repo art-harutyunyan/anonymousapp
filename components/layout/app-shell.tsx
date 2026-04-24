@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarNav />
       <main className="flex-1 md:ml-60 pb-20 md:pb-0">
         {profile && (
-          <div className="bg-muted/60 border-b border-border px-4 py-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <div className="bg-black/[0.03] border-b border-border px-4 py-1 flex items-center justify-between gap-3 text-xs text-foreground/50">
             <span className="flex-1 text-center">
               Logged in as <strong className="text-foreground">{profile.nickname}</strong>
             </span>

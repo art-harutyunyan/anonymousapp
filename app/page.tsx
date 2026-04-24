@@ -48,9 +48,9 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navbar */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="font-bold text-lg brand-gradient-text">Anonymous Match</span>
+          <span className="font-bold text-lg font-display brand-gradient-text">Anonymous Match</span>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="text-xs border-primary/30 text-primary hidden sm:flex">
               18+ Only
@@ -82,12 +82,12 @@ export default function LandingPage() {
           Anonymous · Safe · 18+ Only
         </Badge>
 
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 max-w-3xl leading-tight">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-display tracking-tight mb-6 max-w-3xl leading-tight">
           Connect without revealing{' '}
           <span className="brand-gradient-text">who you are</span>
         </h1>
 
-        <p className="text-muted-foreground text-lg sm:text-xl max-w-xl mb-10 leading-relaxed">
+        <p className="text-foreground/50 text-lg sm:text-xl max-w-xl mb-10 leading-relaxed">
           Match with real people based on shared interests and chat intent.
           No photos required. No full names. Just genuine conversation.
         </p>

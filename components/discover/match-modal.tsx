@@ -26,47 +26,51 @@ export function MatchModal({ open, onClose, onKeepSwiping, candidate, matchId }:
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm text-center border-primary/30 bg-card">
-        {/* Glow ring */}
+      <DialogContent className="max-w-sm text-center border-[1.5px] border-primary/20 bg-[#faf6f0] shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
+        {/* Gradient glow */}
         <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 brand-gradient opacity-5" />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(124,58,237,0.05)_0%,rgba(219,39,119,0.04)_100%)]" />
         </div>
 
         <div className="relative flex flex-col items-center gap-5 pt-2">
-          {/* Animated hearts */}
+          {/* Animated heart */}
           <div className="relative">
-            <div className="w-20 h-20 rounded-full brand-gradient flex items-center justify-center shadow-lg shadow-primary/30">
+            <div className="w-20 h-20 rounded-full brand-gradient flex items-center justify-center shadow-[0_8px_32px_rgba(124,58,237,0.35)]">
               <Heart className="w-9 h-9 text-white fill-white" />
             </div>
             <span className="absolute -top-1 -right-1 text-2xl animate-bounce">✨</span>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold mb-1">It&apos;s a Match!</h2>
-            <p className="text-muted-foreground text-sm">
+            <h2 className="text-2xl font-bold font-display text-foreground mb-1">It&apos;s a Match!</h2>
+            <p className="text-foreground/50 text-sm">
               You and <strong className="text-foreground">{candidate.nickname ?? 'Anonymous'}</strong> both want to talk
             </p>
           </div>
 
-          <Avatar className="w-16 h-16 border-2 border-primary/40">
+          <Avatar className="w-16 h-16 border-2 border-primary/30">
             <AvatarImage src={candidate.avatar_url ?? undefined} />
-            <AvatarFallback className="bg-primary/20 text-primary text-xl">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">{initials}</AvatarFallback>
           </Avatar>
 
           <div className="flex flex-wrap gap-1.5 justify-center">
             {candidate.interests.slice(0, 4).map((i) => (
-              <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+              <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                 {i}
               </span>
             ))}
           </div>
 
           <div className="flex gap-3 w-full pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => { onClose(); onKeepSwiping?.() }}>
+            <Button
+              variant="outline"
+              className="flex-1 rounded-full border-[1.5px] border-black/[0.12] bg-transparent text-foreground hover:bg-black/[0.04]"
+              onClick={() => { onClose(); onKeepSwiping?.() }}
+            >
               Keep Swiping
             </Button>
             <Button
-              className="flex-1 brand-gradient border-0 text-white"
+              className="flex-1 brand-gradient border-0 text-white rounded-full shadow-[0_6px_28px_rgba(124,58,237,0.3)]"
               onClick={() => {
                 onClose()
                 if (matchId) router.push(`/chat/${matchId}`)

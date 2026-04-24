@@ -2,9 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import {
-  Compass, MessageCircle, Heart, Settings, Crown, LogOut, ShieldCheck
-} from 'lucide-react'
+import { Compass, MessageCircle, User, LogOut, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useSupabase } from '@/components/providers/supabase-provider'
@@ -13,10 +11,8 @@ import { Button } from '@/components/ui/button'
 
 const navItems = [
   { href: '/discover', icon: Compass,        label: 'Discover'  },
-  { href: '/matches',  icon: Heart,           label: 'Matches'   },
   { href: '/chat',     icon: MessageCircle,   label: 'Chats'     },
-  { href: '/settings', icon: Settings,        label: 'Settings'  },
-  { href: '/premium',  icon: Crown,           label: 'Premium'   },
+  { href: '/settings', icon: User,            label: 'Profile'   },
 ]
 
 export function SidebarNav() {
@@ -35,10 +31,10 @@ export function SidebarNav() {
     : '?'
 
   return (
-    <aside className="hidden md:flex flex-col w-60 min-h-screen border-r border-border bg-card/50 p-4 gap-2 fixed top-0 left-0 z-40">
+    <aside className="hidden md:flex flex-col w-60 min-h-screen border-r border-border bg-[#f5f0e8]/80 backdrop-blur-xl p-4 gap-2 fixed top-0 left-0 z-40">
       {/* Logo */}
       <div className="px-3 py-4 mb-2">
-        <Link href="/" className="text-xl font-bold brand-gradient-text hover:opacity-80 transition-opacity">
+        <Link href="/" className="text-xl font-bold font-display brand-gradient-text hover:opacity-80 transition-opacity">
           Anonymous Match
         </Link>
       </div>
@@ -54,17 +50,12 @@ export function SidebarNav() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-foreground/50 hover:bg-black/[0.04] hover:text-foreground'
               )}
             >
               <Icon className="w-4.5 h-4.5 shrink-0" />
               {label}
-              {href === '/premium' && !profile?.is_premium && (
-                <span className="ml-auto text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-                  PRO
-                </span>
-              )}
             </Link>
           )
         })}
@@ -75,8 +66,8 @@ export function SidebarNav() {
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
               pathname.startsWith('/admin')
-                ? 'bg-destructive/15 text-destructive'
-                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                ? 'bg-destructive/10 text-destructive'
+                : 'text-foreground/50 hover:bg-black/[0.04] hover:text-foreground'
             )}
           >
             <ShieldCheck className="w-4.5 h-4.5 shrink-0" />
@@ -89,18 +80,18 @@ export function SidebarNav() {
       <div className="border-t border-border pt-4 flex items-center gap-3">
         <Avatar className="w-8 h-8">
           <AvatarImage src={profile?.avatar_url ?? undefined} />
-          <AvatarFallback className="bg-primary/20 text-primary text-xs">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">{initials}</AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{profile?.nickname ?? 'Anonymous'}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-foreground/40">
             {profile?.is_premium ? '✦ Premium' : 'Free plan'}
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0 text-muted-foreground hover:text-foreground"
+          className="shrink-0 text-foreground/40 hover:text-foreground"
           onClick={handleSignOut}
         >
           <LogOut className="w-4 h-4" />

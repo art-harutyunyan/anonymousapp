@@ -134,13 +134,13 @@ export default function OnboardingPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold brand-gradient-text mb-1">Set Up Your Profile</h1>
-          <p className="text-sm text-muted-foreground">Anonymous — only what you choose is visible</p>
+          <h1 className="text-2xl font-bold font-display brand-gradient-text mb-1">Set Up Your Profile</h1>
+          <p className="text-sm text-foreground/50">Anonymous — only what you choose is visible</p>
         </div>
 
         {/* Progress */}
         <div className="mb-8">
-          <div className="flex justify-between text-xs text-muted-foreground mb-2">
+          <div className="flex justify-between text-xs text-foreground/40 mb-2">
             <span>Step {step} of {TOTAL_STEPS}</span>
             <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
           </div>
@@ -148,7 +148,7 @@ export default function OnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="bg-card border border-border rounded-2xl p-6">
+          <div className="bg-white/90 backdrop-blur-xl border-[1.5px] border-black/[0.08] rounded-[20px] p-6">
 
             {/* Step 1: Gender + Age */}
             {step === 1 && (
@@ -381,7 +381,7 @@ export default function OnboardingPage() {
             {step < TOTAL_STEPS ? (
               <Button
                 type="button"
-                className="flex-1 brand-gradient border-0 text-white"
+                className="flex-1 brand-gradient border-0 text-white rounded-full shadow-[0_6px_28px_rgba(124,58,237,0.3)]"
                 disabled={!canProceed()}
                 onClick={() => setStep(step + 1)}
               >
@@ -389,7 +389,7 @@ export default function OnboardingPage() {
               </Button>
             ) : (
               <Button
-                className="flex-1 brand-gradient border-0 text-white"
+                className="flex-1 brand-gradient border-0 text-white rounded-full shadow-[0_6px_28px_rgba(124,58,237,0.3)]"
                 disabled={saving}
                 onClick={handleSubmit(onSubmit)}
               >

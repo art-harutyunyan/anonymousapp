@@ -178,7 +178,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Section tabs */}
-        <div className="flex gap-1 bg-secondary rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-black/[0.04] rounded-xl p-1 mb-6">
           {[
             { id: 'profile', icon: User, label: 'Profile' },
             { id: 'security', icon: Lock, label: 'Security' },
@@ -189,7 +189,7 @@ export default function SettingsPage() {
               onClick={() => setSection(id as typeof section)}
               className={cn(
                 'flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors',
-                section === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                section === id ? 'bg-white text-foreground shadow-sm' : 'text-foreground/45 hover:text-foreground'
               )}
             >
               <Icon className="w-3.5 h-3.5" />

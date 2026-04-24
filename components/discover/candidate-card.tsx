@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, SkipForward, Globe, MapPin } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Globe, MapPin, X, Heart } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { INTENT_LABELS, GENDER_LABELS, ageRangeLabel } from '@/lib/supabase/types'
@@ -46,29 +45,27 @@ export function CandidateCard({
   return (
     <div
       className={cn(
-        'w-full max-w-sm mx-auto bg-card border border-border rounded-3xl overflow-hidden shadow-xl transition-all duration-300',
+        'w-full max-w-sm mx-auto bg-white/90 backdrop-blur-xl border-[1.5px] border-black/[0.08] rounded-[24px] overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.08)] transition-all duration-300',
         action === 'start' && 'scale-95 opacity-0 translate-y-4',
         action === 'skip' && 'scale-95 opacity-0 -translate-y-2'
       )}
     >
       {/* Avatar area */}
       <div className="relative p-8 pb-4 flex flex-col items-center">
-        {/* Background gradient ring */}
-        <div className="absolute top-0 left-0 right-0 h-32 brand-gradient opacity-10" />
+        <div className="absolute top-0 left-0 right-0 h-32 bg-[linear-gradient(135deg,rgba(124,58,237,0.08)_0%,rgba(219,39,119,0.06)_100%)]" />
 
-        <Avatar className="w-24 h-24 border-4 border-primary/30 relative">
+        <Avatar className="w-24 h-24 border-[3px] border-primary/25 relative shadow-lg">
           <AvatarImage src={candidate.avatar_url ?? undefined} />
-          <AvatarFallback className="bg-primary/20 text-primary text-3xl font-bold">
+          <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
             {initials}
           </AvatarFallback>
         </Avatar>
 
-        {/* Name + age */}
         <div className="mt-3 text-center">
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold font-display text-foreground">
             {candidate.nickname ?? 'Anonymous'}
           </h2>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <p className="text-foreground/45 text-sm mt-0.5">
             {ageRangeLabel(candidate.age)} · {GENDER_LABELS[candidate.gender]}
             {candidate.country && (
               <span className="inline-flex items-center gap-1 ml-2">
@@ -79,8 +76,7 @@ export function CandidateCard({
           </p>
         </div>
 
-        {/* Intent badge */}
-        <Badge className="mt-2 brand-gradient border-0 text-white text-xs px-3 py-1">
+        <Badge className="mt-2 brand-gradient border-0 text-white text-xs px-3 py-1 shadow-[0_2px_14px_rgba(124,58,237,0.25)]">
           {INTENT_LABELS[candidate.intent]}
         </Badge>
       </div>
@@ -89,7 +85,7 @@ export function CandidateCard({
       <div className="px-6 pb-6">
         {sharedInterests.length > 0 && (
           <div className="mb-3">
-            <p className="text-xs text-muted-foreground mb-2 font-medium flex items-center gap-1">
+            <p className="text-xs text-foreground/45 mb-2 font-medium flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
               {sharedInterests.length} shared interest{sharedInterests.length !== 1 ? 's' : ''}
             </p>
@@ -97,7 +93,7 @@ export function CandidateCard({
               {sharedInterests.map((i) => (
                 <span
                   key={i}
-                  className="text-xs px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/20"
+                  className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/15 font-medium"
                 >
                   {i}
                 </span>
@@ -109,7 +105,7 @@ export function CandidateCard({
         {otherInterests.length > 0 && (
           <div>
             {sharedInterests.length > 0 && (
-              <p className="text-xs text-muted-foreground mb-2 font-medium flex items-center gap-1">
+              <p className="text-xs text-foreground/45 mb-2 font-medium flex items-center gap-1">
                 <Globe className="w-3 h-3" /> Their interests
               </p>
             )}
@@ -117,13 +113,13 @@ export function CandidateCard({
               {otherInterests.slice(0, 5).map((i) => (
                 <span
                   key={i}
-                  className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border"
+                  className="text-xs px-2.5 py-1 rounded-full bg-black/[0.04] text-foreground/55 border-[1.5px] border-black/[0.08]"
                 >
                   {i}
                 </span>
               ))}
               {otherInterests.length > 5 && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-black/[0.04] text-foreground/55 border-[1.5px] border-black/[0.08]">
                   +{otherInterests.length - 5}
                 </span>
               )}
@@ -131,25 +127,22 @@ export function CandidateCard({
           </div>
         )}
 
-        {/* Action buttons */}
-        <div className="flex gap-3 mt-6">
-          <Button
-            variant="outline"
-            className="flex-1 h-12 text-sm border-border hover:border-muted-foreground"
+        {/* Circular action buttons */}
+        <div className="flex items-center justify-center gap-6 mt-6">
+          <button
             onClick={handleSkip}
             disabled={loading || !!action}
+            className="w-[58px] h-[58px] rounded-full bg-black/[0.05] border-[1.5px] border-black/[0.10] flex items-center justify-center transition-all active:scale-[0.92] disabled:opacity-40 hover:bg-black/[0.08]"
           >
-            <SkipForward className="w-4 h-4 mr-1.5" />
-            Skip
-          </Button>
-          <Button
-            className="flex-1 h-12 text-sm brand-gradient border-0 text-white shadow-md shadow-primary/25"
+            <X className="w-6 h-6 text-foreground/50" strokeWidth={2.5} />
+          </button>
+          <button
             onClick={handleStart}
             disabled={loading || !!action}
+            className="w-[68px] h-[68px] rounded-full brand-gradient flex items-center justify-center shadow-[0_8px_30px_rgba(124,58,237,0.35)] transition-all active:scale-[0.92] active:shadow-[0_4px_20px_rgba(124,58,237,0.25)] disabled:opacity-40"
           >
-            <MessageCircle className="w-4 h-4 mr-1.5" />
-            Start Talking
-          </Button>
+            <Heart className="w-7 h-7 text-white fill-white" />
+          </button>
         </div>
       </div>
     </div>

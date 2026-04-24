@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,42 +48,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Always dark — no light mode */
+/* ── Warm light theme ─────────────────────────────────────────────────────── */
 :root {
-  --background: oklch(0.09 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.13 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.13 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* Violet primary */
-  --primary: oklch(0.58 0.22 293);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.18 0 0);
-  --muted-foreground: oklch(0.60 0 0);
-  --accent: oklch(0.58 0.22 293);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.65 0.22 25);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.58 0.22 293);
-  --chart-1: oklch(0.58 0.22 293);
-  --chart-2: oklch(0.55 0.18 220);
-  --chart-3: oklch(0.60 0.16 160);
-  --chart-4: oklch(0.65 0.18 30);
-  --chart-5: oklch(0.60 0.20 340);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.13 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.58 0.22 293);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.18 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.58 0.22 293);
+  --background: #faf6f0;
+  --foreground: #1a0f2e;
+  --card: #f5f0e8;
+  --card-foreground: #1a0f2e;
+  --popover: #faf6f0;
+  --popover-foreground: #1a0f2e;
+  /* Dynamic accent — driven by accent color system */
+  --accent-color: #6d28d9;
+  --accent-secondary: #4f46e5;
+  --primary: var(--accent-color);
+  --primary-foreground: #ffffff;
+  --secondary: #efe9e0;
+  --secondary-foreground: #1a0f2e;
+  --muted: #ede8df;
+  --muted-foreground: rgba(26, 15, 46, 0.5);
+  --accent: var(--accent-color);
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.08);
+  --ring: color-mix(in srgb, var(--accent-color) 50%, transparent);
+  --chart-1: var(--accent-color);
+  --chart-2: var(--accent-secondary);
+  --chart-3: #06b6d4;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+  --radius: 1.25rem;
+  --sidebar: #f5f0e8;
+  --sidebar-foreground: #1a0f2e;
+  --sidebar-primary: var(--accent-color);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  --sidebar-accent-foreground: var(--accent-color);
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: color-mix(in srgb, var(--accent-color) 50%, transparent);
 }
 
 @layer base {
@@ -96,32 +98,36 @@
   }
   html {
     @apply font-sans;
-    color-scheme: dark;
+    color-scheme: light;
   }
-  /* iOS Safari: remove 300ms tap delay and ensure buttons register as
-     interactive so click events fire on real devices (not just DevTools sim) */
+  /* iOS Safari: remove 300ms tap delay */
   button, a, [role="button"] {
     touch-action: manipulation;
     cursor: pointer;
   }
 }
 
-/* Scrollbar */
+/* Scrollbar — minimal on light theme */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 15%); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 25%); }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
-/* Brand gradient utilities */
+/* Brand gradient utilities — purple → pink */
 .brand-gradient {
-  background: linear-gradient(135deg, oklch(0.58 0.22 293), oklch(0.60 0.20 340));
+  background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
 }
 .brand-gradient-text {
-  background: linear-gradient(135deg, oklch(0.72 0.18 293), oklch(0.72 0.16 340));
+  background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .brand-gradient-border {
-  border-image: linear-gradient(135deg, oklch(0.58 0.22 293), oklch(0.60 0.20 340)) 1;
+  border-image: linear-gradient(135deg, #7c3aed 0%, #db2777 100%) 1;
+}
+
+/* Heading font utility */
+.font-display {
+  font-family: var(--font-heading), Georgia, serif;
 }

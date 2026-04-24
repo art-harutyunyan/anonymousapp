@@ -30,11 +30,10 @@ const signInSchema = z.object({
 type SignUpData = z.infer<typeof signUpSchema>
 type SignInData = z.infer<typeof signInSchema>
 
-// ─── Shared input styling — native <input>, no @base-ui dependency ─────────
 const inputCls =
-  'w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-base ' +
-  'outline-none transition-colors placeholder:text-muted-foreground ' +
-  'focus:border-ring focus:ring-2 focus:ring-ring/30 ' +
+  'w-full rounded-[14px] border-[1.5px] border-black/[0.08] bg-white/90 px-4 py-3.5 text-[15px] text-foreground ' +
+  'outline-none transition-all placeholder:text-foreground/30 ' +
+  'focus:border-primary/50 focus:bg-black/[0.04] focus:ring-[4px] focus:ring-primary/[0.06] ' +
   'disabled:opacity-50 disabled:cursor-not-allowed'
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -97,25 +96,24 @@ export default function AuthPage() {
     router.push('/discover')
   }
 
-  // Called from form onSubmit after e.preventDefault() is already called synchronously.
-  // Using form + type="submit" so iOS Safari handles keyboard dismissal + tap in one gesture.
   const submitSignIn = () => { if (!loading) signInForm.handleSubmit(handleSignIn)() }
   const submitSignUp = () => { if (!loading) signUpForm.handleSubmit(handleSignUp)() }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background">
-      {/* Background glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background relative overflow-hidden">
+      {/* Decorative background glows */}
+      <div className="absolute top-1/4 left-1/3 w-80 h-80 rounded-full bg-[radial-gradient(circle,rgba(124,58,237,0.1)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute bottom-1/3 right-1/4 w-64 h-64 rounded-full bg-[radial-gradient(circle,rgba(219,39,119,0.08)_0%,transparent_70%)] pointer-events-none" />
 
       <div className="w-full max-w-sm relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold brand-gradient-text mb-1">Anonymous Match</h1>
-          <p className="text-sm text-muted-foreground">Connect without revealing who you are</p>
+          <h1 className="text-3xl font-bold font-display brand-gradient-text mb-2">Anonymous Match</h1>
+          <p className="text-sm text-foreground/50">Connect without revealing who you are</p>
         </div>
 
         {isBanned && (
-          <div className="mb-6 p-4 rounded-xl border border-destructive/40 bg-destructive/10 flex items-start gap-3">
+          <div className="mb-6 p-4 rounded-2xl border border-destructive/30 bg-destructive/8 flex items-start gap-3">
             <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
             <p className="text-sm text-destructive">
               Your account has been suspended for violating our community guidelines.
@@ -123,17 +121,17 @@ export default function AuthPage() {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-2xl p-6">
-          {/* Tab switcher — native <button>, no library dependency */}
-          <div className="flex bg-muted rounded-lg p-[3px] mb-6">
+        <div className="bg-white/90 backdrop-blur-xl border-[1.5px] border-black/[0.08] rounded-[20px] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
+          {/* Tab switcher */}
+          <div className="flex bg-black/[0.04] rounded-xl p-[3px] mb-6">
             <button
               type="button"
               onClick={() => setMode('signin')}
               className={cn(
-                'flex-1 py-2 text-sm font-medium rounded-md transition-colors',
+                'flex-1 py-2.5 text-sm font-semibold rounded-[9px] transition-all',
                 mode === 'signin'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground'
+                  ? 'brand-gradient text-white shadow-sm'
+                  : 'text-foreground/50'
               )}
             >
               Sign In
@@ -142,10 +140,10 @@ export default function AuthPage() {
               type="button"
               onClick={() => setMode('signup')}
               className={cn(
-                'flex-1 py-2 text-sm font-medium rounded-md transition-colors',
+                'flex-1 py-2.5 text-sm font-semibold rounded-[9px] transition-all',
                 mode === 'signup'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground'
+                  ? 'brand-gradient text-white shadow-sm'
+                  : 'text-foreground/50'
               )}
             >
               Sign Up
@@ -164,7 +162,7 @@ export default function AuthPage() {
               className="flex flex-col gap-4"
             >
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="si-email" className="text-sm font-medium leading-none">
+                <label htmlFor="si-email" className="text-sm font-semibold text-foreground/70 leading-none">
                   Email
                 </label>
                 <input
@@ -184,7 +182,7 @@ export default function AuthPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="si-password" className="text-sm font-medium leading-none">
+                <label htmlFor="si-password" className="text-sm font-semibold text-foreground/70 leading-none">
                   Password
                 </label>
                 <div className="relative">
@@ -201,7 +199,7 @@ export default function AuthPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/35"
                     onClick={() => setShowPassword((v) => !v)}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -215,7 +213,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full brand-gradient rounded-lg py-3 text-white text-sm font-medium mt-1 disabled:opacity-50"
+                className="w-full brand-gradient rounded-full py-3.5 text-white text-base font-semibold mt-1 disabled:opacity-40 shadow-[0_6px_28px_rgba(124,58,237,0.3)] hover:shadow-[0_4px_20px_rgba(124,58,237,0.22)] transition-all active:scale-[0.97]"
               >
                 {loading ? 'Signing in…' : 'Sign In'}
               </button>
@@ -234,7 +232,7 @@ export default function AuthPage() {
               className="flex flex-col gap-4"
             >
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="su-email" className="text-sm font-medium leading-none">
+                <label htmlFor="su-email" className="text-sm font-semibold text-foreground/70 leading-none">
                   Email
                 </label>
                 <input
@@ -254,7 +252,7 @@ export default function AuthPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="su-password" className="text-sm font-medium leading-none">
+                <label htmlFor="su-password" className="text-sm font-semibold text-foreground/70 leading-none">
                   Password
                 </label>
                 <div className="relative">
@@ -271,7 +269,7 @@ export default function AuthPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/35"
                     onClick={() => setShowPassword((v) => !v)}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -283,7 +281,7 @@ export default function AuthPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="su-confirm" className="text-sm font-medium leading-none">
+                <label htmlFor="su-confirm" className="text-sm font-semibold text-foreground/70 leading-none">
                   Confirm Password
                 </label>
                 <input
@@ -308,7 +306,7 @@ export default function AuthPage() {
                   className="mt-0.5 accent-primary"
                   {...signUpForm.register('age18')}
                 />
-                <span className="text-sm text-muted-foreground leading-snug">
+                <span className="text-sm text-foreground/50 leading-snug">
                   I confirm I am <strong className="text-foreground">18 years or older</strong> and agree
                   to the Terms of Service
                 </span>
@@ -320,7 +318,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full brand-gradient rounded-lg py-3 text-white text-sm font-medium mt-1 disabled:opacity-50"
+                className="w-full brand-gradient rounded-full py-3.5 text-white text-base font-semibold mt-1 disabled:opacity-40 shadow-[0_6px_28px_rgba(124,58,237,0.3)] hover:shadow-[0_4px_20px_rgba(124,58,237,0.22)] transition-all active:scale-[0.97]"
               >
                 {loading ? 'Creating account…' : 'Create Account'}
               </button>
@@ -328,7 +326,7 @@ export default function AuthPage() {
           )}
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-foreground/30 mt-6">
           18+ only · Anonymous profiles · Safe environment
         </p>
       </div>

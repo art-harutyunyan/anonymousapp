@@ -48,10 +48,10 @@ export default function PremiumPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl brand-gradient mb-4 shadow-lg shadow-primary/30">
             <Crown className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">
+          <h1 className="text-3xl font-bold font-display mb-2">
             Anonymous Match <span className="brand-gradient-text">Premium</span>
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-foreground/50">
             Unlock the full experience. More matches, better filters, exclusive features.
           </p>
         </div>
