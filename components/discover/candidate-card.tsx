@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Globe, MapPin, X, Heart } from 'lucide-react'
+import { Globe, MapPin, X, Heart, Crown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { INTENT_LABELS, GENDER_LABELS, ageRangeLabel } from '@/lib/supabase/types'
@@ -62,9 +62,17 @@ export function CandidateCard({
         </Avatar>
 
         <div className="mt-3 text-center">
-          <h2 className="text-xl font-bold font-display text-foreground">
-            {candidate.nickname ?? 'Anonymous'}
-          </h2>
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="text-xl font-bold font-display text-foreground">
+              {candidate.nickname ?? 'Anonymous'}
+            </h2>
+            {candidate.is_premium && (
+              <Crown className="w-4 h-4 text-amber-500 shrink-0" title="Premium member" />
+            )}
+            {candidate.last_seen_at && new Date(candidate.last_seen_at) > new Date(Date.now() - 5 * 60 * 1000) && (
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)] shrink-0" title="Online now" />
+            )}
+          </div>
           <p className="text-foreground/45 text-sm mt-0.5">
             {ageRangeLabel(candidate.age)} · {GENDER_LABELS[candidate.gender]}
             {candidate.country && (
@@ -74,6 +82,11 @@ export function CandidateCard({
               </span>
             )}
           </p>
+          {candidate.tagline && (
+            <p className="text-foreground/55 text-xs mt-1.5 italic max-w-[200px] mx-auto leading-snug">
+              &ldquo;{candidate.tagline}&rdquo;
+            </p>
+          )}
         </div>
 
         <Badge className="mt-2 brand-gradient border-0 text-white text-xs px-3 py-1 shadow-[0_2px_14px_rgba(124,58,237,0.25)]">

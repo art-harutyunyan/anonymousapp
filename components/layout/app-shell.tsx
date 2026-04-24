@@ -1,12 +1,31 @@
 'use client'
 
+import { useEffect } from 'react'
 import { SidebarNav } from './sidebar-nav'
 import { BottomNav } from './bottom-nav'
 import { ConnectionIndicator } from './connection-indicator'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
+const HEARTBEAT_INTERVAL_MS = 30_000
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile } = useAuthStore()
+
+  useEffect(() => {
+    if (!profile) return
+    const ping = () => {
+      if (document.visibilityState === 'visible') {
+        fetch('/api/heartbeat', { method: 'POST' }).catch(() => {})
+      }
+    }
+    ping()
+    const id = setInterval(ping, HEARTBEAT_INTERVAL_MS)
+    document.addEventListener('visibilitychange', ping)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', ping)
+    }
+  }, [profile])
 
   return (
     <div className="flex min-h-screen">

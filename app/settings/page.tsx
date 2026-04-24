@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import {
-  Settings, User, Lock, Shield, Trash2, LogOut, Check, Upload, UserX
+  Settings, User, Lock, Shield, Trash2, LogOut, Check, Upload, UserX, Bell, Download
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import {
   INTERESTS, INTENT_LABELS, GENDER_LABELS, COUNTRIES
 } from '@/lib/supabase/types'
-import type { Gender, Intent, Profile } from '@/lib/supabase/types'
+import type { Gender, Intent, Profile, NotificationSettings } from '@/lib/supabase/types'
 import { cn } from '@/lib/utils'
 
 const profileSchema = z.object({
@@ -60,7 +60,9 @@ export default function SettingsPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
-  const [section, setSection] = useState<'profile' | 'security' | 'blocked'>('profile')
+  const [section, setSection] = useState<'profile' | 'security' | 'blocked' | 'notifications'>('profile')
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings | null>(null)
+  const [savingNotif, setSavingNotif] = useState(false)
 
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(profileSchema),
@@ -95,6 +97,16 @@ export default function SettingsPage() {
       .select('blocked_id, created_at, profiles!blocks_blocked_id_fkey(*)')
       .eq('blocker_id', user.id)
       .then(({ data }) => setBlockedUsers((data as unknown as BlockedUser[]) ?? []))
+  }, [user, supabase])
+
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => { if (data) setNotifSettings(data as NotificationSettings) })
   }, [user, supabase])
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,16 +165,32 @@ export default function SettingsPage() {
     toast.success('User unblocked')
   }
 
+  const toggleNotif = async (key: keyof Omit<NotificationSettings, 'user_id' | 'updated_at'>) => {
+    if (!user || !notifSettings) return
+    const next = { ...notifSettings, [key]: !notifSettings[key] }
+    setNotifSettings(next)
+    setSavingNotif(true)
+    await supabase
+      .from('notification_settings')
+      .upsert({ user_id: user.id, [key]: next[key], updated_at: new Date().toISOString() })
+    setSavingNotif(false)
+  }
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/auth')
   }
 
   const handleDeleteAccount = async () => {
-    if (!confirm('Are you sure? This cannot be undone.')) return
+    if (!confirm('Delete your account permanently? All data and media will be erased. This cannot be undone.')) return
+    const res = await fetch('/api/delete-account', { method: 'DELETE' })
+    if (!res.ok) {
+      toast.error('Could not delete account. Please try again.')
+      return
+    }
     await supabase.auth.signOut()
     router.push('/auth')
-    toast.info('Contact support to fully delete your account.')
+    toast.success('Account deleted.')
   }
 
   const initials = profile?.nickname
@@ -182,6 +210,7 @@ export default function SettingsPage() {
           {[
             { id: 'profile', icon: User, label: 'Profile' },
             { id: 'security', icon: Lock, label: 'Security' },
+            { id: 'notifications', icon: Bell, label: 'Notifs' },
             { id: 'blocked', icon: Shield, label: `Blocked (${blockedUsers.length})` },
           ].map(({ id, icon: Icon, label }) => (
             <button
@@ -325,6 +354,14 @@ export default function SettingsPage() {
             <Separator />
 
             <div className="flex flex-col gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => window.open('/api/data-export', '_blank')}
+              >
+                <Download className="w-4 h-4 mr-2" /> Download My Data
+              </Button>
               <Button type="button" variant="outline" className="w-full" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" /> Sign Out
               </Button>
@@ -414,6 +451,69 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Notifications section */}
+        {section === 'notifications' && (
+          <div className="flex flex-col gap-2">
+            <h2 className="font-semibold mb-2">Notification Preferences</h2>
+            {[
+              {
+                key: 'browser_push' as const,
+                label: 'Browser push notifications',
+                description: 'Get notified in your browser when you receive a new message or match.',
+              },
+              {
+                key: 'email_match_invite' as const,
+                label: 'New match emails',
+                description: 'Receive an email when you get a new match.',
+              },
+              {
+                key: 'email_saved_connection' as const,
+                label: 'Saved connection emails',
+                description: 'Notify me when a saved connection starts a new chat.',
+              },
+              {
+                key: 'email_premium_events' as const,
+                label: 'Premium event emails',
+                description: 'Updates about premium features, offers, and expiry reminders.',
+              },
+              {
+                key: 'email_account_notices' as const,
+                label: 'Account notices',
+                description: 'Important security and account-related emails. Cannot be turned off.',
+                disabled: true,
+              },
+            ].map(({ key, label, description, disabled }) => (
+              <div
+                key={key}
+                className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={disabled || savingNotif || !notifSettings}
+                  onClick={() => toggleNotif(key)}
+                  className={cn(
+                    'relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50',
+                    notifSettings?.[key] ? 'bg-primary' : 'bg-black/10'
+                  )}
+                  aria-checked={notifSettings?.[key] ?? false}
+                  role="switch"
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
+                      notifSettings?.[key] ? 'translate-x-5' : 'translate-x-0'
+                    )}
+                  />
+                </button>
+              </div>
+            ))}
           </div>
         )}
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Compass, MessageCircle, User, LogOut, ShieldCheck } from 'lucide-react'
+import { Compass, MessageCircle, User, LogOut, ShieldCheck, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useSupabase } from '@/components/providers/supabase-provider'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 const navItems = [
   { href: '/discover', icon: Compass,        label: 'Discover'  },
   { href: '/chat',     icon: MessageCircle,   label: 'Chats'     },
+  { href: '/saved',    icon: Heart,           label: 'Saved'     },
   { href: '/settings', icon: User,            label: 'Profile'   },
 ]
 

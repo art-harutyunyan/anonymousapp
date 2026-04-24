@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import {
-  ArrowLeft, Send, MoreVertical, ShieldAlert, UserX, Trash2
+  ArrowLeft, Send, MoreVertical, ShieldAlert, UserX, Trash2, Heart, BellOff, Bell, ImagePlus, Crown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,8 +40,14 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [otherUserReadAt, setOtherUserReadAt] = useState<string | null>(null)
+  const [matchSides, setMatchSides] = useState<{ userA: string; userB: string } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -79,9 +85,9 @@ export default function ChatPage() {
       log.info('init', { matchId, userId: user.id })
       const { data: match, error: matchErr } = await db
         .from('matches')
-        .select('user_a, user_b, is_active')
+        .select('user_a, user_b, is_active, last_read_at_a, last_read_at_b')
         .eq('id', matchId)
-        .single() as { data: { user_a: string; user_b: string; is_active: boolean } | null; error: unknown }
+        .single() as { data: { user_a: string; user_b: string; is_active: boolean; last_read_at_a: string | null; last_read_at_b: string | null } | null; error: unknown }
 
       if (cancelled) return
 
@@ -95,6 +101,11 @@ export default function ChatPage() {
       }
 
       const otherUserId = match.user_a === user.id ? match.user_b : match.user_a
+      if (!cancelled) {
+        setMatchSides({ userA: match.user_a, userB: match.user_b })
+        const otherReadAt = match.user_a === user.id ? match.last_read_at_b : match.last_read_at_a
+        setOtherUserReadAt(otherReadAt)
+      }
       const { data: other, error: profileErr } = await db
         .from('profiles')
         .select('*')
@@ -118,6 +129,24 @@ export default function ChatPage() {
       setLoading(false)
       scrollToBottom()
       db.rpc('mark_match_read', { p_match_id: matchId })
+
+      // Check if already saved / muted
+      if (other) {
+        db.from('saved_connections')
+          .select('owner_id')
+          .eq('owner_id', user.id)
+          .eq('connection_id', other.id)
+          .maybeSingle()
+          .then(({ data }: { data: unknown }) => { if (!cancelled) setIsSaved(!!data) })
+
+        db.from('matches')
+          .select('muted_by')
+          .eq('id', matchId)
+          .single()
+          .then(({ data }: { data: { muted_by: string[] } | null }) => {
+            if (!cancelled && data) setIsMuted(data.muted_by.includes(user.id))
+          })
+      }
     }
 
     init()
@@ -180,6 +209,24 @@ export default function ChatPage() {
           const updated = payload.new as Message
           log.debug('realtime UPDATE', { id: updated.id, is_deleted: updated.is_deleted })
           setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'matches',
+          filter: `id=eq.${matchId}`,
+        },
+        (payload) => {
+          const updated = payload.new as { user_a: string; user_b: string; last_read_at_a: string | null; last_read_at_b: string | null }
+          setMatchSides((s) => {
+            if (!s) return s
+            const otherReadAt = s.userA === user.id ? updated.last_read_at_b : updated.last_read_at_a
+            setOtherUserReadAt(otherReadAt)
+            return s
+          })
         }
       )
       .subscribe((status, err) => {
@@ -306,6 +353,91 @@ export default function ChatPage() {
     )
   }
 
+  const handleSaveConnection = async () => {
+    if (!user || !otherUser) return
+    if (isSaved) {
+      await db.from('saved_connections')
+        .delete()
+        .eq('owner_id', user.id)
+        .eq('connection_id', otherUser.id)
+      setIsSaved(false)
+      toast.success('Removed from saved connections')
+    } else {
+      const { error } = await db.from('saved_connections').insert({
+        owner_id: user.id,
+        connection_id: otherUser.id,
+        last_match_id: matchId,
+      })
+      if (error?.message?.includes('saved_connection_limit_reached')) {
+        toast.error("You've used all 3 free slots. Upgrade to Premium for unlimited.")
+        router.push('/premium')
+        return
+      }
+      if (error) { toast.error('Failed to save connection'); return }
+      setIsSaved(true)
+      toast.success('Connection saved!')
+    }
+  }
+
+  const handleMuteToggle = async () => {
+    if (!user) return
+    const { data: match } = await db.from('matches').select('muted_by').eq('id', matchId).single() as { data: { muted_by: string[] } | null }
+    const current: string[] = match?.muted_by ?? []
+    const updated = isMuted
+      ? current.filter((id: string) => id !== user.id)
+      : [...current, user.id]
+    await db.from('matches').update({ muted_by: updated }).eq('id', matchId)
+    setIsMuted(!isMuted)
+    toast.success(isMuted ? 'Unmuted' : 'Muted — notifications suppressed')
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    e.target.value = ''
+
+    if (file.size > 50 * 1024 * 1024) { toast.error('File too large (max 50 MB)'); return }
+
+    setUploadingMedia(true)
+    try {
+      let uploadFile = file
+      if (file.type.startsWith('image/')) {
+        const imageCompression = (await import('browser-image-compression')).default
+        uploadFile = await imageCompression(file, {
+          maxWidthOrHeight: 1600,
+          maxSizeMB: 5,
+          useWebWorker: true,
+        })
+      }
+
+      const ext = file.name.split('.').pop() ?? 'bin'
+      const path = `${matchId}/${user.id}/${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('chat-media')
+        .upload(path, uploadFile)
+      if (uploadErr) { toast.error('Upload failed'); return }
+
+      const { data: { signedUrl } } = await supabase.storage
+        .from('chat-media')
+        .createSignedUrl(path, 60 * 60 * 24 * 7) // 7-day signed URL
+
+      const mediaType: 'image' | 'video' = file.type.startsWith('video/') ? 'video' : 'image'
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from('messages').insert({
+        match_id: matchId,
+        sender_id: user.id,
+        content: '',
+        media_url: signedUrl,
+        media_type: mediaType,
+      })
+    } catch {
+      toast.error('Failed to send media')
+    } finally {
+      setUploadingMedia(false)
+    }
+  }
+
   const initials = otherUser?.nickname
     ? otherUser.nickname.slice(0, 2).toUpperCase()
     : '??'
@@ -324,7 +456,12 @@ export default function ChatPage() {
         </Avatar>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate text-foreground">{otherUser?.nickname ?? 'Anonymous'}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-semibold text-sm truncate text-foreground">{otherUser?.nickname ?? 'Anonymous'}</p>
+            {otherUser?.is_premium && (
+              <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Premium member" />
+            )}
+          </div>
           {otherUser?.country && (
             <p className="text-xs text-foreground/40 truncate">{otherUser.country}</p>
           )}
@@ -337,6 +474,15 @@ export default function ChatPage() {
             <MoreVertical className="w-4 h-4 text-foreground/50" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleSaveConnection}>
+              <Heart className={cn('w-4 h-4 mr-2', isSaved && 'fill-primary text-primary')} />
+              {isSaved ? 'Unsave connection' : 'Save connection'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleMuteToggle}>
+              {isMuted ? <Bell className="w-4 h-4 mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
+              {isMuted ? 'Unmute' : 'Mute notifications'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setReportOpen(true)}
@@ -344,7 +490,6 @@ export default function ChatPage() {
               <ShieldAlert className="w-4 h-4 mr-2" />
               Report user
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={handleBlock}
@@ -396,14 +541,32 @@ export default function ChatPage() {
                       </Avatar>
                     )}
                     <div className={cn(
-                      'group relative max-w-[72%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
-                      isMe
+                      'group relative rounded-2xl text-sm leading-relaxed overflow-hidden',
+                      msg.media_url ? 'p-0 max-w-[240px]' : 'px-4 py-2.5 max-w-[72%]',
+                      isMe && !msg.media_url
                         ? 'brand-gradient text-white rounded-br-sm'
-                        : 'bg-white border border-black/[0.06] text-foreground rounded-bl-sm',
+                        : !msg.media_url
+                          ? 'bg-white border border-black/[0.06] text-foreground rounded-bl-sm'
+                          : '',
                       msg.is_deleted && 'opacity-50'
                     )}>
                       {msg.is_deleted ? (
-                        <span className="italic text-xs">Message deleted</span>
+                        <span className="italic text-xs px-4 py-2.5 block">Message deleted</span>
+                      ) : msg.media_url && msg.media_type === 'image' ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={msg.media_url}
+                          alt="Shared image"
+                          className="w-full max-w-[240px] rounded-2xl object-cover cursor-pointer"
+                          onClick={() => window.open(msg.media_url!, '_blank')}
+                        />
+                      ) : msg.media_url && msg.media_type === 'video' ? (
+                        <video
+                          src={msg.media_url}
+                          controls
+                          preload="metadata"
+                          className="w-full max-w-[240px] rounded-2xl"
+                        />
                       ) : (
                         msg.content
                       )}
@@ -419,6 +582,14 @@ export default function ChatPage() {
                       )}
                     </div>
                   </div>
+                  {/* Read receipt: only show under last MY message that was read (premium only) */}
+                  {isMe && profile?.is_premium && otherUserReadAt &&
+                    new Date(otherUserReadAt) >= new Date(msg.created_at) &&
+                    (idx === messages.length - 1 || messages[idx + 1]?.sender_id !== user?.id) && (
+                    <p className="text-right text-[10px] text-foreground/30 pr-1 -mt-1">
+                      Read
+                    </p>
+                  )}
                 </div>
               )
             })}
@@ -429,6 +600,23 @@ export default function ChatPage() {
       {/* Input */}
       <div className="px-4 py-3 border-t border-border bg-white/80 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/mp4,video/webm"
+            className="sr-only"
+            onChange={handleImageUpload}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="w-9 h-9 shrink-0 text-foreground/40 hover:text-primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploadingMedia}
+            title="Send image or video"
+          >
+            <ImagePlus className="w-5 h-5" />
+          </Button>
           <Input
             ref={inputRef}
             value={messageText}
@@ -437,20 +625,20 @@ export default function ChatPage() {
             placeholder="Type a message…"
             className="flex-1 bg-black/[0.04] border-0 focus-visible:ring-primary/25 rounded-xl text-foreground placeholder:text-foreground/30"
             maxLength={2000}
-            disabled={sending}
+            disabled={sending || uploadingMedia}
             autoFocus
           />
           <Button
             size="icon"
             className="brand-gradient border-0 text-white w-10 h-10 shrink-0 rounded-xl shadow-[0_4px_16px_rgba(124,58,237,0.25)]"
             onClick={sendMessage}
-            disabled={!messageText.trim() || sending}
+            disabled={!messageText.trim() || sending || uploadingMedia}
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
         <p className="text-center text-xs text-foreground/30 mt-1.5">
-          {messageText.length}/2000
+          {uploadingMedia ? 'Uploading…' : `${messageText.length}/2000`}
         </p>
       </div>
 

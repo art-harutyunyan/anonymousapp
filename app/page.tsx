@@ -202,7 +202,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border/50 py-6 px-4 text-center text-xs text-muted-foreground">
-        <p>© 2026 Anonymous Match · For adults 18 and over · <Link href="#" className="hover:text-foreground underline">Privacy</Link> · <Link href="#" className="hover:text-foreground underline">Terms</Link></p>
+        <p>© 2026 Anonymous Match · For adults 18 and over · <Link href="/privacy" className="hover:text-foreground underline">Privacy</Link> · <Link href="/terms" className="hover:text-foreground underline">Terms</Link> · <Link href="/community-guidelines" className="hover:text-foreground underline">Community Guidelines</Link></p>
       </footer>
     </div>
   )

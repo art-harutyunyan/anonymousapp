@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { MessageCircle, Clock } from 'lucide-react'
+import { MessageCircle, Clock, Crown } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -148,6 +148,9 @@ export default function ChatsPage() {
                         <span className="font-semibold text-sm truncate text-foreground">
                           {other.nickname ?? 'Anonymous'}
                         </span>
+                        {other.is_premium && (
+                          <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Premium member" />
+                        )}
                         <span className="text-xs text-foreground/40 shrink-0">
                           {other.age} · {INTENT_LABELS[other.intent!]}
                         </span>

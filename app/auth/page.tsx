@@ -308,7 +308,11 @@ export default function AuthPage() {
                 />
                 <span className="text-sm text-foreground/50 leading-snug">
                   I confirm I am <strong className="text-foreground">18 years or older</strong> and agree
-                  to the Terms of Service
+                  to the{' '}
+                  <a href="/terms" target="_blank" className="underline hover:text-foreground">Terms of Service</a>,{' '}
+                  <a href="/privacy" target="_blank" className="underline hover:text-foreground">Privacy Policy</a>,
+                  and{' '}
+                  <a href="/community-guidelines" target="_blank" className="underline hover:text-foreground">Community Guidelines</a>
                 </span>
               </label>
               {signUpForm.formState.errors.age18 && (

@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import { INTERESTS, INTENT_LABELS, GENDER_LABELS, COUNTRIES, AGE_RANGES } from '@/lib/supabase/types'
+import { INTERESTS, INTENT_LABELS, GENDER_LABELS, COUNTRIES, AGE_RANGES, LANGUAGES } from '@/lib/supabase/types'
 import { cn } from '@/lib/utils'
 import type { Gender, Intent } from '@/lib/supabase/types'
 
@@ -26,7 +26,9 @@ const schema = z.object({
   intent: z.enum(['friendship', 'dating', 'casual', 'talk'] as const),
   interests: z.array(z.string()).min(1, 'Select at least one interest').max(15),
   nickname: z.string().max(20).optional(),
+  tagline: z.string().max(80).optional(),
   country: z.string().optional(),
+  preferred_languages: z.array(z.string()).max(5).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -47,7 +49,9 @@ export default function OnboardingPage() {
     defaultValues: {
       interests: [],
       nickname: '',
+      tagline: '',
       country: '',
+      preferred_languages: [],
     },
   })
 
@@ -101,9 +105,12 @@ export default function OnboardingPage() {
         intent: data.intent,
         interests: data.interests,
         nickname: data.nickname || null,
+        tagline: data.tagline || null,
         country: data.country || null,
+        preferred_languages: data.preferred_languages ?? [],
         avatar_url,
         onboarding_complete: true,
+        age_gate_confirmed_at: new Date().toISOString(),
       })
       .eq('id', user.id)
       .select()
@@ -321,6 +328,48 @@ export default function OnboardingPage() {
                     {...register('nickname')}
                   />
                   <p className="text-xs text-muted-foreground">Shown instead of "Anonymous" if you set one</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="tagline">Tagline <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    id="tagline"
+                    placeholder="e.g. Night owl, coffee addict, bookworm"
+                    maxLength={80}
+                    {...register('tagline')}
+                  />
+                  <p className="text-xs text-muted-foreground">Up to 80 characters · shown on your candidate card</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Languages <span className="text-muted-foreground font-normal">(optional, up to 5)</span></Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LANGUAGES.map((lang) => {
+                      const selected = (watch('preferred_languages') ?? []).includes(lang)
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => {
+                            const current = watch('preferred_languages') ?? []
+                            if (selected) {
+                              setValue('preferred_languages', current.filter((l) => l !== lang))
+                            } else if (current.length < 5) {
+                              setValue('preferred_languages', [...current, lang])
+                            }
+                          }}
+                          className={cn(
+                            'px-2.5 py-1 rounded-full border text-xs font-medium transition-all',
+                            selected
+                              ? 'border-primary bg-primary/15 text-primary'
+                              : 'border-border hover:border-primary/40 text-muted-foreground'
+                          )}
+                        >
+                          {lang}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">

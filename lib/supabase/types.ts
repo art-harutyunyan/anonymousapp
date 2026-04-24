@@ -14,12 +14,36 @@ export interface Profile {
   interests: string[]
   country: string | null
   avatar_url: string | null
+  tagline: string | null
+  preferred_languages: string[]
+  last_seen_at: string | null
+  age_gate_confirmed_at: string | null
   is_premium: boolean
   is_banned: boolean
   is_admin: boolean
   is_bot: boolean
   onboarding_complete: boolean
   created_at: string
+}
+
+export interface SavedConnection {
+  owner_id: string
+  connection_id: string
+  private_nickname: string | null
+  note: string | null
+  last_match_id: string | null
+  saved_at: string
+  profile?: Profile
+}
+
+export interface NotificationSettings {
+  user_id: string
+  browser_push: boolean
+  email_match_invite: boolean
+  email_saved_connection: boolean
+  email_premium_events: boolean
+  email_account_notices: boolean
+  updated_at: string
 }
 
 export type LogEventType =
@@ -68,6 +92,10 @@ export interface Message {
   sender_id: string
   content: string
   is_deleted: boolean
+  media_url: string | null
+  media_type: 'image' | 'video' | null
+  media_width: number | null
+  media_height: number | null
   created_at: string
 }
 
@@ -99,6 +127,9 @@ export interface DiscoveryCandidate {
   interests: string[]
   country: string | null
   avatar_url: string | null
+  tagline: string | null
+  last_seen_at: string | null
+  is_premium: boolean
   shared_interests_count: number
 }
 
@@ -139,6 +170,13 @@ export function ageRangeLabel(age: number): string {
   }
   return String(age)
 }
+
+export const LANGUAGES = [
+  'English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian',
+  'Dutch', 'Russian', 'Polish', 'Arabic', 'Hindi', 'Bengali',
+  'Japanese', 'Korean', 'Mandarin', 'Cantonese', 'Turkish',
+  'Swedish', 'Norwegian', 'Danish', 'Finnish',
+] as const
 
 export const COUNTRIES = [
   'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany',
