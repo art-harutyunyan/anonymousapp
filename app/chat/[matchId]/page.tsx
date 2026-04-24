@@ -268,6 +268,10 @@ export default function ChatPage() {
       content,
       is_deleted: false,
       created_at: new Date().toISOString(),
+      media_url: null,
+      media_type: null,
+      media_width: null,
+      media_height: null,
     }
     setMessages((prev) => [...prev, optimistic])
     scrollToBottom()
