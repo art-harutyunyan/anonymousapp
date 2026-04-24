@@ -416,6 +416,10 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        <p className="mt-10 text-center text-[11px] text-muted-foreground/60 tabular-nums select-all">
+          build {process.env.NEXT_PUBLIC_GIT_SHA ?? 'dev'} · {process.env.NEXT_PUBLIC_BUILT_AT?.slice(0, 10) ?? ''}
+        </p>
       </div>
     </AppShell>
   )
