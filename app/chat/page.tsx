@@ -149,7 +149,9 @@ export default function ChatsPage() {
                           {other.nickname ?? 'Anonymous'}
                         </span>
                         {other.is_premium && (
-                          <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Premium member" />
+                          <span title="Premium member" className="inline-flex shrink-0">
+                            <Crown className="w-3.5 h-3.5 text-amber-500" />
+                          </span>
                         )}
                         <span className="text-xs text-foreground/40 shrink-0">
                           {other.age} · {INTENT_LABELS[other.intent!]}

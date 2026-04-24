@@ -67,7 +67,9 @@ export function CandidateCard({
               {candidate.nickname ?? 'Anonymous'}
             </h2>
             {candidate.is_premium && (
-              <Crown className="w-4 h-4 text-amber-500 shrink-0" title="Premium member" />
+              <span title="Premium member" className="inline-flex shrink-0">
+                <Crown className="w-4 h-4 text-amber-500" />
+              </span>
             )}
             {candidate.last_seen_at && new Date(candidate.last_seen_at) > new Date(Date.now() - 5 * 60 * 1000) && (
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)] shrink-0" title="Online now" />

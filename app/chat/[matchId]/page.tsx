@@ -32,7 +32,7 @@ export default function ChatPage() {
   const supabase = useSupabase()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = getFetchClient() as any
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [otherUser, setOtherUser] = useState<Profile | null>(null)
@@ -421,9 +421,11 @@ export default function ChatPage() {
         .upload(path, uploadFile)
       if (uploadErr) { toast.error('Upload failed'); return }
 
-      const { data: { signedUrl } } = await supabase.storage
+      const { data: signed } = await supabase.storage
         .from('chat-media')
         .createSignedUrl(path, 60 * 60 * 24 * 7) // 7-day signed URL
+      const signedUrl = signed?.signedUrl
+      if (!signedUrl) { toast.error('Upload failed'); return }
 
       const mediaType: 'image' | 'video' = file.type.startsWith('video/') ? 'video' : 'image'
 
@@ -463,7 +465,9 @@ export default function ChatPage() {
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm truncate text-foreground">{otherUser?.nickname ?? 'Anonymous'}</p>
             {otherUser?.is_premium && (
-              <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Premium member" />
+              <span title="Premium member" className="inline-flex shrink-0">
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
+              </span>
             )}
           </div>
           {otherUser?.country && (
